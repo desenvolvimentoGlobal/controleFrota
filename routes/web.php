@@ -12,6 +12,9 @@ use App\Http\Controllers\Cadastros\SetorController;
 use App\Http\Controllers\Frota\CondicaoVeiculoController;
 use App\Http\Controllers\Frota\VeiculoController;
 use App\Http\Controllers\NotificacaoController;
+use App\Http\Controllers\Operacao\AlocacaoController;
+use App\Http\Controllers\Operacao\ChecagemController;
+use App\Http\Controllers\Operacao\OcorrenciaController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\WebPushController;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +52,26 @@ Route::middleware(['auth', 'trocar-senha'])->group(function (): void {
     Route::patch('veiculos/{veiculo}/situacao', [VeiculoController::class, 'situacao'])->name('veiculos.situacao');
     Route::patch('veiculos/{veiculo}/estado', [VeiculoController::class, 'estado'])->name('veiculos.estado');
     Route::put('veiculos/{veiculo}/condicoes', [CondicaoVeiculoController::class, 'update'])->name('veiculos.condicoes');
+
+    // ── Operação: alocações, checagens e ocorrências (todos; recorte nas Policies) ──
+    Route::get('alocacoes/agenda', [AlocacaoController::class, 'agenda'])->name('alocacoes.agenda');
+    Route::resource('alocacoes', AlocacaoController::class)->parameters(['alocacoes' => 'alocacao'])->only(['index', 'create', 'store', 'show']);
+    Route::patch('alocacoes/{alocacao}/aprovar', [AlocacaoController::class, 'aprovar'])->name('alocacoes.aprovar');
+    Route::patch('alocacoes/{alocacao}/recusar', [AlocacaoController::class, 'recusar'])->name('alocacoes.recusar');
+    Route::patch('alocacoes/{alocacao}/cancelar', [AlocacaoController::class, 'cancelar'])->name('alocacoes.cancelar');
+    Route::post('alocacoes/{alocacao}/checagem', [ChecagemController::class, 'iniciar'])->name('alocacoes.checagem');
+
+    Route::get('checagens/foto/{foto}', [ChecagemController::class, 'foto'])->name('checagens.foto');
+    Route::get('checagens/veiculo/{veiculo}', [ChecagemController::class, 'historico'])->name('checagens.historico');
+    Route::get('checagens/{checagem}', [ChecagemController::class, 'show'])->name('checagens.show');
+    Route::get('checagens/{checagem}/editar', [ChecagemController::class, 'editar'])->name('checagens.editar');
+    Route::post('checagens/{checagem}/itens/{item}', [ChecagemController::class, 'item'])->name('checagens.item');
+    Route::post('checagens/{checagem}/concluir', [ChecagemController::class, 'concluir'])->name('checagens.concluir');
+
+    Route::get('ocorrencias', [OcorrenciaController::class, 'index'])->name('ocorrencias.index');
+    Route::get('ocorrencias/{ocorrencia}', [OcorrenciaController::class, 'show'])->name('ocorrencias.show');
+    Route::patch('ocorrencias/{ocorrencia}/contestar', [OcorrenciaController::class, 'contestar'])->name('ocorrencias.contestar');
+    Route::patch('ocorrencias/{ocorrencia}/revisar', [OcorrenciaController::class, 'revisar'])->name('ocorrencias.revisar');
 
     // ── Fornecedores (admin, gestor, financeiro) ──────────────────────────────
     Route::middleware('can:fornecedores.gerenciar')->group(function (): void {

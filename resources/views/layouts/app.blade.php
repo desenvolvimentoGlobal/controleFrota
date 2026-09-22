@@ -63,14 +63,17 @@
                 <i class="bi bi-car-front"></i> Veículos
             </a>
 
-            {{-- ===== Operação (fase 2) ===== --}}
+            {{-- ===== Operação ===== --}}
             <div class="gc-nav-section">Operação</div>
-            <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 2">
+            <a href="{{ route('alocacoes.index') }}" class="gc-nav-link {{ request()->routeIs('alocacoes.index', 'alocacoes.create', 'alocacoes.show', 'checagens.*') ? 'active' : '' }}">
                 <i class="bi bi-calendar-check"></i> Alocações
-            </span>
-            <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 2">
-                <i class="bi bi-camera"></i> Checagens
-            </span>
+            </a>
+            <a href="{{ route('alocacoes.agenda') }}" class="gc-nav-link {{ request()->routeIs('alocacoes.agenda') ? 'active' : '' }}">
+                <i class="bi bi-calendar-week"></i> Agenda da frota
+            </a>
+            <a href="{{ route('ocorrencias.index') }}" class="gc-nav-link {{ request()->routeIs('ocorrencias.*') ? 'active' : '' }}">
+                <i class="bi bi-exclamation-diamond"></i> Ocorrências
+            </a>
 
             {{-- ===== Manutenção (fase 3) ===== --}}
             @if(auth()->user()->can('manutencoes.gerenciar') || auth()->user()->can('fornecedores.gerenciar'))

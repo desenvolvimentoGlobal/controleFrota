@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\Alocacao;
+use App\Models\Ocorrencia;
 use App\Models\Usuario;
+use App\Policies\AlocacaoPolicy;
+use App\Policies\OcorrenciaPolicy;
 use App\Policies\UsuarioPolicy;
 use App\Services\AuditoriaService;
 use Illuminate\Auth\Events\Failed;
@@ -43,6 +47,8 @@ class AppServiceProvider extends ServiceProvider
     private function registrarPolicies(): void
     {
         Gate::policy(Usuario::class, UsuarioPolicy::class);
+        Gate::policy(Alocacao::class, AlocacaoPolicy::class);
+        Gate::policy(Ocorrencia::class, OcorrenciaPolicy::class);
     }
 
     /**

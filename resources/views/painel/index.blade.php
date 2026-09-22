@@ -3,6 +3,29 @@
 @section('title', 'Painel')
 
 @section('content')
+    @if($operacao['minha_checagem'])
+        <div class="alert alert-primary py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><i class="bi bi-camera me-1"></i> Você tem o veículo <strong>{{ $operacao['minha_checagem']->veiculo->nome }}</strong> {{ $operacao['minha_checagem']->situacao->value === 'em_uso' ? 'em uso' : 'aprovado' }}. Próximo passo: checagem de <strong>{{ $operacao['minha_checagem']->proximaChecagem()->rotulo() }}</strong>.</span>
+            <form method="POST" action="{{ route('alocacoes.checagem', $operacao['minha_checagem']) }}">@csrf<button class="btn btn-sm btn-gc-primary"><i class="bi bi-camera"></i> Fazer checagem</button></form>
+        </div>
+    @endif
+
+    <h6 class="text-muted text-uppercase small mb-2">Operação</h6>
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <x-stat-card icon="bi-calendar-day" label="Alocações hoje" :value="$operacao['hoje']->count()" tone="navy" :href="route('alocacoes.agenda')" />
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <x-stat-card icon="bi-hourglass-split" label="Aguardando aprovação" :value="$operacao['aguardando']" :tone="$operacao['aguardando'] > 0 ? 'amber' : 'green'" :href="route('alocacoes.index', ['situacao' => 'solicitada'])" />
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <x-stat-card icon="bi-alarm" label="Retornos atrasados" :value="$operacao['atrasadas']" :tone="$operacao['atrasadas'] > 0 ? 'red' : 'green'" :href="route('alocacoes.index', ['situacao' => 'em_uso'])" />
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <x-stat-card icon="bi-exclamation-diamond" label="Ocorrências abertas" :value="$operacao['ocorrencias_abertas']" :tone="$operacao['ocorrencias_abertas'] > 0 ? 'amber' : 'green'" :href="route('ocorrencias.index', ['situacao' => 'aberta'])" />
+        </div>
+    </div>
+
     <h6 class="text-muted text-uppercase small mb-2">Frota</h6>
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-lg-3">

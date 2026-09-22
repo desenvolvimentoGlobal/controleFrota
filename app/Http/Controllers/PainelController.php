@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\SituacaoAlocacao;
 use App\Enums\SituacaoCondicao;
 use App\Enums\SituacaoVeiculo;
+use App\Models\Alocacao;
+use App\Models\Ocorrencia;
 use App\Models\Usuario;
 use App\Models\Veiculo;
 use Illuminate\View\View;
@@ -42,6 +45,18 @@ class PainelController extends Controller
                 ->whereNotNull('cnh_validade')->whereDate('cnh_validade', '<=', $limite)->orderBy('cnh_validade')->get(),
         ];
 
-        return view('painel.index', compact('frota', 'pessoas'));
+        $operacao = [
+            'hoje' => Alocacao::with(['veiculo:id,nome', 'motorista:id,nome'])->visiveisPara($usuario)->abertas()
+                ->whereDate('saida_prevista', '<=', today())->whereDate('retorno_previsto', '>=', today())
+                ->orderBy('saida_prevista')->get(),
+            'aguardando' => $usuario->can('alocacoes.aprovar')
+                ? Alocacao::visiveisPara($usuario)->where('situacao', SituacaoAlocacao::Solicitada->value)->count() : 0,
+            'atrasadas' => Alocacao::visiveisPara($usuario)->where('situacao', SituacaoAlocacao::EmUso->value)->where('retorno_previsto', '<', now())->count(),
+            'ocorrencias_abertas' => Ocorrencia::visiveisPara($usuario)->abertas()->count(),
+            'minha_checagem' => Alocacao::with('veiculo:id,nome')->where('motorista_id', $usuario->id)
+                ->whereIn('situacao', [SituacaoAlocacao::Aprovada->value, SituacaoAlocacao::EmUso->value])->orderBy('saida_prevista')->first(),
+        ];
+
+        return view('painel.index', compact('frota', 'pessoas', 'operacao'));
     }
 }

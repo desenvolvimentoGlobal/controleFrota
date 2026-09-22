@@ -30,7 +30,7 @@ class AuditoriaService
         'logs_auditoria', 'notificacoes', 'inscricoes_push', 'sessions', 'cache', 'cache_locks',
         'jobs', 'job_batches', 'failed_jobs', 'password_reset_tokens', 'migrations',
         // Derivadas: alimentadas por ações que já entram na trilha.
-        'veiculo_historico_estados', 'manutencao_movimentacoes',
+        'veiculo_historico_estados', 'manutencao_movimentacoes', 'checagem_fotos', 'checagem_itens',
     ];
 
     /** Rótulos em português para as descrições legíveis. */

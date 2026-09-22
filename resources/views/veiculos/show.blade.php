@@ -38,8 +38,15 @@
                         <div><strong>{{ number_format($veiculo->km_atual, 0, ',', '.') }} km</strong> atuais <span class="text-muted">(inicial {{ number_format($veiculo->km_inicial, 0, ',', '.') }})</span></div>
                         <div class="text-muted">Estado inicial: {{ $veiculo->estado_inicial->rotulo() }}</div>
                     </div>
+                    <div class="d-flex gap-2 mt-3 flex-wrap">
+                        <a href="{{ route('checagens.historico', $veiculo) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-camera"></i> Checagens</a>
+                        <a href="{{ route('alocacoes.index', ['veiculo_id' => $veiculo->id]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-calendar-check"></i> Alocações</a>
+                        @if($veiculo->situacao->podeSerAlocado() && ! $veiculo->temCondicaoCritica())
+                            <a href="{{ route('alocacoes.create', ['veiculo_id' => $veiculo->id]) }}" class="btn btn-sm btn-gc-primary"><i class="bi bi-plus-lg"></i> Alocar</a>
+                        @endif
+                    </div>
                     @can('frota.gerenciar')
-                        <div class="d-flex gap-2 mt-3 flex-wrap">
+                        <div class="d-flex gap-2 mt-2 flex-wrap">
                             <a href="{{ route('veiculos.edit', $veiculo) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Editar</a>
                             <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modal-situacao"><i class="bi bi-toggle-on"></i> Situação</button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modal-estado"><i class="bi bi-speedometer2"></i> Estado / km</button>
