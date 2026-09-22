@@ -57,11 +57,11 @@
                 <i class="bi bi-bell"></i> Notificações
             </a>
 
-            {{-- ===== Frota (fase 1) ===== --}}
+            {{-- ===== Frota ===== --}}
             <div class="gc-nav-section">Frota</div>
-            <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 1">
+            <a href="{{ route('veiculos.index') }}" class="gc-nav-link {{ request()->routeIs('veiculos.*') ? 'active' : '' }}">
                 <i class="bi bi-car-front"></i> Veículos
-            </span>
+            </a>
 
             {{-- ===== Operação (fase 2) ===== --}}
             <div class="gc-nav-section">Operação</div>
@@ -73,12 +73,19 @@
             </span>
 
             {{-- ===== Manutenção (fase 3) ===== --}}
-            @can('manutencoes.gerenciar')
+            @if(auth()->user()->can('manutencoes.gerenciar') || auth()->user()->can('fornecedores.gerenciar'))
                 <div class="gc-nav-section">Manutenção</div>
-                <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 3">
-                    <i class="bi bi-wrench-adjustable"></i> Manutenções
-                </span>
-            @endcan
+                @can('manutencoes.gerenciar')
+                    <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 3">
+                        <i class="bi bi-wrench-adjustable"></i> Manutenções
+                    </span>
+                @endcan
+                @can('fornecedores.gerenciar')
+                    <a href="{{ route('fornecedores.index') }}" class="gc-nav-link {{ request()->routeIs('fornecedores.*') ? 'active' : '' }}">
+                        <i class="bi bi-shop"></i> Fornecedores
+                    </a>
+                @endcan
+            @endif
 
             {{-- ===== Financeiro (fase 4) ===== --}}
             @can('financeiro.ver')
@@ -93,6 +100,14 @@
                 <div class="gc-nav-section">Administração</div>
                 <a href="{{ route('usuarios.index') }}" class="gc-nav-link {{ request()->routeIs('usuarios.*') ? 'active' : '' }}">
                     <i class="bi bi-person-gear"></i> Usuários
+                </a>
+            @endcan
+            @can('cadastros.gerenciar')
+                <a href="{{ route('setores.index') }}" class="gc-nav-link {{ request()->routeIs('setores.*') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-3"></i> Setores
+                </a>
+                <a href="{{ route('cargos.index') }}" class="gc-nav-link {{ request()->routeIs('cargos.*') ? 'active' : '' }}">
+                    <i class="bi bi-briefcase"></i> Cargos
                 </a>
             @endcan
             @can('administrar')

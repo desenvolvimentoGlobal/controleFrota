@@ -222,7 +222,8 @@ public/css/app.css  public/js/app.js  (copiados do gestaoPessoas) + public/js/ch
 
 | Data | Fase | O que foi feito | Próximo passo |
 |---|---|---|---|
-| 22/09/2026 | 0 — Fundação | Projeto Laravel 13 criado; template de infra (`frota`); design system `gc-` copiado; migrations de perfis, setores, cargos, usuários (ficha completa + CNH + `gestor_id`), notificações, push e auditoria; login por login/e-mail; troca de senha obrigatória; Gates e `UsuarioPolicy` com recorte por cadeia; CRUD de usuários; painel inicial; `config/frota.php`; testes de autenticação e de usuários; `CLAUDE.md`. | Fase 1: CRUD de veículos (form em seções), condição mecânica, histórico de estados, telas de setores/cargos/fornecedores, cards do painel. |
+| 22/09/2026 | 0 — Fundação | Projeto Laravel 13 criado; template de infra (`frota`); design system `gc-` copiado; migrations de perfis, setores, cargos, usuários (ficha completa + CNH + `gestor_id`), notificações, push e auditoria; login por login/e-mail; troca de senha obrigatória; Gates e `UsuarioPolicy` com recorte por cadeia; CRUD de usuários; painel inicial; `config/frota.php`; testes de autenticação e de usuários; `CLAUDE.md`. | Fase 1. |
+| 23/09/2026 | 1 — Cadastros | Tabelas `veiculos`, `veiculo_condicoes`, `veiculo_historico_estados`, `fornecedores`; enums de situação/condição e listas de características; `VeiculoService` (criar com condições iniciais, mudar situação/estado/km com histórico, condições em lote); CRUD de veículos com form em seções, ficha com abas (dados, condição mecânica, histórico) e modais de situação e estado/km; fornecedores (admin, gestor, financeiro) com validação de CNPJ; setores e cargos em tela única (admin); painel com cards de frota, vencimentos e CNH; seeder de veículos; 6 testes novos. | Fase 2: alocações (solicitar, aprovar, conflito de agenda), checagens com fotos comparando com a anterior, ocorrências, notificações, retenção de fotos. |
 
 ## 11. Referências usadas
 

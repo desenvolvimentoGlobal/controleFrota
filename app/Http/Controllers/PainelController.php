@@ -4,29 +4,44 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\SituacaoCondicao;
+use App\Enums\SituacaoVeiculo;
 use App\Models\Usuario;
+use App\Models\Veiculo;
 use Illuminate\View\View;
 
 /**
- * Painel inicial. Na fase 0 mostra só os números de usuários; os cards de
- * frota, alocações, checagens e manutenções entram nas fases seguintes.
+ * Painel inicial. Cards de frota e pessoas; alocações, checagens e
+ * manutenções entram nas fases seguintes.
  */
 class PainelController extends Controller
 {
     public function index(): View
     {
         $usuario = auth()->user();
+        $limite = now()->addDays((int) config('frota.alertas.dias_antecedencia_vencimento', 30));
 
-        $indicadores = [
-            'usuarios_ativos' => Usuario::visiveisPara($usuario)->where('ativo', true)->count(),
-            'motoristas' => Usuario::visiveisPara($usuario)->where('ativo', true)->where('pode_dirigir', true)->count(),
-            'cnh_vencendo' => Usuario::visiveisPara($usuario)
-                ->where('ativo', true)
-                ->whereNotNull('cnh_validade')
-                ->whereDate('cnh_validade', '<=', now()->addDays(30))
-                ->count(),
+        $porSituacao = Veiculo::ativos()->selectRaw('situacao, count(*) as total')->groupBy('situacao')->pluck('total', 'situacao');
+
+        $frota = [
+            'total' => (int) $porSituacao->sum(),
+            'disponiveis' => (int) ($porSituacao[SituacaoVeiculo::Disponivel->value] ?? 0),
+            'em_uso' => (int) (($porSituacao[SituacaoVeiculo::EmUso->value] ?? 0) + ($porSituacao[SituacaoVeiculo::Reservado->value] ?? 0)),
+            'em_manutencao' => (int) ($porSituacao[SituacaoVeiculo::EmManutencao->value] ?? 0),
+            'indisponiveis' => (int) ($porSituacao[SituacaoVeiculo::Indisponivel->value] ?? 0),
+            'criticos' => Veiculo::ativos()->whereHas('condicoes', fn ($q) => $q->where('situacao', SituacaoCondicao::Critico->value))->count(),
+            'vencimentos' => Veiculo::ativos()
+                ->where(fn ($q) => $q->whereDate('licenciamento_validade', '<=', $limite)->orWhereDate('seguro_validade', '<=', $limite))
+                ->orderBy('nome')->get(),
         ];
 
-        return view('painel.index', compact('indicadores'));
+        $pessoas = [
+            'usuarios_ativos' => Usuario::visiveisPara($usuario)->where('ativo', true)->count(),
+            'motoristas' => Usuario::visiveisPara($usuario)->where('ativo', true)->where('pode_dirigir', true)->count(),
+            'cnh_vencendo' => Usuario::visiveisPara($usuario)->where('ativo', true)
+                ->whereNotNull('cnh_validade')->whereDate('cnh_validade', '<=', $limite)->orderBy('cnh_validade')->get(),
+        ];
+
+        return view('painel.index', compact('frota', 'pessoas'));
     }
 }

@@ -178,10 +178,15 @@ class AuditoriaService
         $verbo = ucfirst($acao);
         $entidade = self::ENTIDADES[$modelo->getTable()] ?? "o registro de {$modelo->getTable()}";
 
-        $identificacao = $modelo->getAttribute('nome')
-            ?? $modelo->getAttribute('placa')
-            ?? $modelo->getAttribute('titulo')
-            ?? $modelo->getAttribute('codigo')
+        // getAttributes() e não getAttribute(): com Model::shouldBeStrict() um
+        // atributo inexistente lança exceção, e nem todo model tem `nome`.
+        $atributos = $modelo->getAttributes();
+        $identificacao = $atributos['nome']
+            ?? $atributos['placa']
+            ?? $atributos['razao_social']
+            ?? $atributos['titulo']
+            ?? $atributos['codigo']
+            ?? $atributos['sistema']
             ?? ('#'.$modelo->getKey());
 
         $texto = "{$verbo} {$entidade} {$identificacao}";

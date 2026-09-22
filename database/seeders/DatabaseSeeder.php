@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             PerfilSeeder::class,
             SetorCargoSeeder::class,
             UsuarioSeeder::class,
+            VeiculoSeeder::class,
         ]);
     }
 }
