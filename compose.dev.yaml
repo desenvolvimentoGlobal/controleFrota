@@ -1,0 +1,64 @@
+﻿# =============================================================================
+# TEMPLATE — override de DESENVOLVIMENTO local.
+# Contém apenas as DIFERENÇAS em relação ao compose.yaml.
+#
+#     docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+#
+# O que faz:
+#   - monta o código do host (edição ao vivo);
+#   - preserva vendor/ e public/build da imagem via volumes nomeados (para o
+#     bind mount não escondê-los e quebrar a aplicação);
+#   - liga APP_ENV=local / APP_DEBUG=true e logs em arquivo;
+#   - publica portas SÓ no dev (produção não publica nada — entra pelo Traefik).
+# =============================================================================
+
+services:
+
+  app:
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      LOG_CHANNEL: stack   # grava em storage/logs (acessível via bind mount)
+    volumes:
+      - .:/var/www/html                                   # código ao vivo
+      - vendor:/var/www/html/vendor                       # vendor da imagem
+      - public-build:/var/www/html/public/build           # assets da imagem
+      - storage-private:/var/www/html/storage/app/private # uploads persistentes
+
+  worker:
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      LOG_CHANNEL: stack
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+      - public-build:/var/www/html/public/build
+      - storage-private:/var/www/html/storage/app/private
+
+  web:
+    # A porta publicada é conveniência de DEV e vive SÓ aqui. Em produção o
+    # compose.yaml NÃO publica nada: quem atende 80/443 é o Traefik, e o único
+    # caminho até este container é a rede `edge`.
+    ports:
+      - "8080:80"   # host 8080 (evita conflito com Apache/WAMP na 80)
+    volumes:
+      - ./public:/var/www/html/public                 # estáticos ao vivo
+      - public-build:/var/www/html/public/build       # assets Vite compilados
+
+  db:
+    ports:
+      - "3307:3306"   # conecte por HeidiSQL/DBeaver/Workbench em 127.0.0.1:3307
+
+volumes:
+  vendor:        # dependências PHP instaladas dentro da imagem
+  public-build:  # assets Vite compilados dentro da imagem
+
+networks:
+  # Em produção a `edge` é EXTERNA (criada no host, onde o Traefik enxerga os
+  # containers). No dev não há Traefik nem rede `edge` no host — sem este
+  # override o `up` falharia com "network edge declared as external, but could
+  # not be found". Com external:false o próprio Compose cria a rede (com escopo
+  # do projeto). Ninguém precisa saber de nada.
+  edge:
+    external: false

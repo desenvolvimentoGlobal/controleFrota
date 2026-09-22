@@ -1,0 +1,198 @@
+﻿# =============================================================================
+# TEMPLATE — Compose BASE (topologia compartilhada da aplicação).
+# Extraído do "gestao", PROVADO em produção (Lightsail + Docker + Traefik v3.6).
+#
+# Serviços: web (Nginx) · app (PHP-FPM) · worker (queue:work) · db (MySQL 8.0)
+#
+# COMO USAR num projeto novo — procure por  frota  e troque TUDO por um
+# nome ÚNICO no servidor (ex.: financeiro, rh, portal). Ver checklist no README.
+#
+# Dev local (com override):
+#     docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+# Produção (só a base):
+#     docker compose up -d --build
+#
+# Segredos (APP_KEY, VAPID_*) NÃO ficam aqui. Vêm do .env.docker (não versionado)
+# — veja .env.docker.example.
+# =============================================================================
+
+# ⚠️ NOME DO PROJETO — ÚNICO no servidor. Prefixa volumes/redes/containers.
+name: frota
+
+# Build compartilhado por "app" e "worker" (mesma imagem, garantidamente).
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+  target: app
+  args:
+    INSTALL_DEV: "true"
+
+# Ambiente operacional do Laravel dentro do container (NÃO contém segredos).
+# Estes valores sobrescrevem o .env: o phpdotenv do Laravel NÃO sobrepõe
+# variáveis já presentes no ambiente do processo. Ou seja, `environment:` VENCE
+# `env_file:` — cravar algo aqui torna inútil pôr a mesma chave no .env.docker.
+#
+# Credenciais de banco vêm de variáveis PRÓPRIAS do Docker (prefixo DOCKER_DB_*),
+# resolvidas pelo Compose a partir do .env do HOST, e a MESMA origem alimenta o
+# serviço "db". Assim app e db nunca divergem.
+x-app-env: &app-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  # Interpolado a partir do .env do HOST. NÃO adianta pôr APP_URL no .env.docker:
+  # `environment:` vence `env_file:`, então esta linha ganha. Em produção aponte
+  # para a URL pública real (o mesmo valor que o Traefik roteia no Host()).
+  APP_URL: ${APP_URL:-http://localhost:8080}
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: mysql
+  DB_HOST: db
+  DB_PORT: "3306"
+  DB_DATABASE: ${DOCKER_DB_DATABASE:-frota_db}
+  DB_USERNAME: ${DOCKER_DB_USERNAME:-frota}
+  DB_PASSWORD: ${DOCKER_DB_PASSWORD:-dev_password_trocar}
+  QUEUE_CONNECTION: database
+  CACHE_STORE: database
+  SESSION_DRIVER: database
+  FILESYSTEM_DISK: local
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # app — Laravel via PHP-FPM
+  # ---------------------------------------------------------------------------
+  app:
+    build: *app-build
+    image: frota-app:local
+    restart: unless-stopped
+    mem_limit: 1g
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *app-env
+    env_file:
+      - path: ./.env.docker
+        required: false
+    volumes:
+      - storage-private:/var/www/html/storage/app/private
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # worker — mesma imagem do app, processando a fila (driver database)
+  # ---------------------------------------------------------------------------
+  # Primeiro candidato a cortar memória se o servidor apertar: fila database,
+  # sem picos. Meça com `docker stats` antes de mexer.
+  worker:
+    build: *app-build
+    image: frota-app:local
+    restart: unless-stopped
+    mem_limit: 768m
+    user: "www-data"
+    command: php artisan queue:work --tries=3 --timeout=90 --sleep=3 --max-time=3600
+    depends_on:
+      db:
+        condition: service_healthy
+    environment: *app-env
+    env_file:
+      - path: ./.env.docker
+        required: false
+    volumes:
+      - storage-private:/var/www/html/storage/app/private
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # web — Nginx servindo public/ e fazendo proxy do PHP para o app
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    image: frota-web:local
+    restart: unless-stopped
+    mem_limit: 512m
+    depends_on:
+      - app
+    # SEM "ports" em produção: quem publica 80/443 no host é o Traefik. O único
+    # caminho até este container é a rede `edge` — premissa que sustenta o
+    # trustProxies('*') em bootstrap/app.php. NÃO republique portas aqui (para
+    # acesso local sem Traefik, use o compose.dev.yaml).
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - internal
+      - edge
+    labels:
+      - "traefik.enable=true"
+      # ⚠️ OBRIGATÓRIO com o web em 2 redes (internal + edge): sem isto o Traefik
+      #    pode escolher o IP da rede errada → 502 intermitente, difícil de achar.
+      - "traefik.docker.network=edge"
+      # ⚠️ Router/service com nome ÚNICO por projeto. DOIS projetos com o mesmo
+      #    nome de router = tráfego cai no container errado, SEM erro visível.
+      - "traefik.http.routers.frota.rule=Host(`frota.SEU-IP.nip.io`)"
+      # HTTPS (Let's Encrypt via Traefik). O `certresolver=le` supõe que o
+      # Traefik do host tem um resolver chamado `le` configurado (é o caso deste
+      # servidor). E então SESSION_SECURE_COOKIE=true no .env.docker.
+      - "traefik.http.routers.frota.entrypoints=websecure"
+      - "traefik.http.routers.frota.tls.certresolver=le"
+      # server.port=80 é a porta INTERNA do Nginx e continua 80 de propósito: o
+      # TLS termina no Traefik; da rede `edge` para dentro o tráfego é HTTP puro.
+      # Não confunda com o 443 público — este é o lado de dentro.
+      - "traefik.http.services.frota.loadbalancer.server.port=80"
+
+  # ---------------------------------------------------------------------------
+  # db — MySQL 8.0 (isolado por projeto; volume próprio)
+  # ---------------------------------------------------------------------------
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    # 1g: o baseline do mysqld já fica em ~400-500 MB. Teto apertado aqui NÃO
+    # degrada — mata o processo (OOM-kill), e o sintoma no app é "MySQL server
+    # has gone away", que parece falha de rede e custa caro para diagnosticar.
+    mem_limit: 1g
+    # buffer pool EXPLÍCITO: não depender do default da imagem (muda entre
+    # versões do MySQL). 256M cabe folgado no teto de 1g.
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+    # MESMA origem das credenciais do app (x-app-env) — app e db nunca divergem.
+    # ⚠️ O MySQL só lê estas senhas no PRIMEIRO boot, com o volume db-data VAZIO.
+    #    Depois, mudar aqui NÃO troca a senha — só quebra a conexão do app.
+    environment:
+      MYSQL_DATABASE: ${DOCKER_DB_DATABASE:-frota_db}
+      MYSQL_USER: ${DOCKER_DB_USERNAME:-frota}
+      MYSQL_PASSWORD: ${DOCKER_DB_PASSWORD:-dev_password_trocar}
+      MYSQL_ROOT_PASSWORD: ${DOCKER_DB_ROOT_PASSWORD:-root_dev_trocar}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    volumes:
+      - db-data:/var/lib/mysql
+    # Sem "ports" na base: o db NUNCA é exposto ao host em produção, NUNCA entra
+    # na rede edge. Exposição para ferramentas externas fica no compose.dev.yaml.
+    networks:
+      - internal
+
+volumes:
+  db-data:          # dados do MySQL (/var/lib/mysql) — PERSISTENTE
+  storage-private:  # uploads privados (anexos) — PERSISTENTE
+
+networks:
+  # Rede privada do projeto: app, worker, db e web. O db vive SÓ aqui — nunca
+  # na `edge`, nunca com `ports`.
+  internal:
+    driver: bridge
+
+  # Rede compartilhada do host, criada FORA deste compose (onde vive o Traefik):
+  #     docker network create edge
+  # Só o `web` entra nela. Todos os projetos do servidor compartilham esta rede.
+  edge:
+    external: true

@@ -1,0 +1,19 @@
+# Nunca entram na imagem:
+.git
+node_modules
+vendor
+storage/*.key
+.env
+.env.docker
+tests
+README.md
+planilha_regras_binificacao
+docker/app.env.example
+
+# Artefatos de runtime/compilados do host (recriados no container)
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*
+.phpunit.result.cache

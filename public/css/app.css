@@ -1,0 +1,723 @@
+/* =======================================================================
+   Gestão de Compras e Estoque — tema visual (Fase 5)
+   Paleta: navy (estrutura) + teal (ação/marca) + âmbar (atenção) + vermelho (crítico)
+   ======================================================================= */
+
+:root {
+  --gc-navy: #16243B;
+  --gc-navy-light: #1F3654;
+  --gc-navy-soft: #27425F;
+  --gc-global-blue: #00549A;
+  --gc-global-blue-dark: #00549A;
+  --gc-teal: #2EC4B6;
+  --gc-teal-dark: #21A99C;
+  --gc-amber: #F4A623;
+  --gc-red: #E2553B;
+  --gc-green: #2F9E5B;
+  --gc-bg: #F3F5F8;
+  --gc-card: #FFFFFF;
+  --gc-text: #1B2430;
+  --gc-text-muted: #6B7686;
+  --gc-border: #E4E8EE;
+  --sidebar-width: 250px;
+
+  /* ---- Tons suaves (badges, alertas, botoes de acao) ------------------
+     Fundo claro + texto escuro da MESMA familia. Dessaturados de proposito:
+     o sistema tem um toque minimalista e a cor entra como SINAL do que pede
+     atencao, nao como decoracao. Nada do vermelho #dc3545 do Bootstrap.
+     Fonte unica: quem quiser mudar a paleta mexe so aqui. */
+  --gc-suave-verde-bg: #E6F3EB;    --gc-suave-verde-fg: #1F6E3F;
+  --gc-suave-ambar-bg: #FCF1DF;    --gc-suave-ambar-fg: #93610F;
+  --gc-suave-vermelho-bg: #FBE9E5; --gc-suave-vermelho-fg: #A33724;
+  --gc-suave-azul-bg: #E1EDF7;     --gc-suave-azul-fg: #1B5C8A;
+  --gc-suave-neutro-bg: #E4E8EE;   --gc-suave-neutro-fg: #3D4757;
+
+  /* Versoes solidas, para quando o elemento e preenchido (toast, botao). */
+  --gc-solido-verde: #3E8E62;
+  --gc-solido-vermelho: #B4503A;
+}
+
+body {
+  background-color: var(--gc-bg);
+  color: var(--gc-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: .925rem;
+}
+
+h1, h2, h3, h4, h5, h6, .gc-heading {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gc-navy);
+}
+
+/* Tema minimalista: links em tom neutro (cor fica só no menu e nos badges). */
+a { color: #3D4757; }
+a:hover { color: #14181E; }
+
+/* ---------- Layout geral ---------- */
+.gc-wrapper { display: flex; height: 100vh; overflow: hidden; }
+
+/* Sidebar recolhivel. Em tela grande ela EMPURRA o conteudo: fica no fluxo do
+   flex e entra por margin-left, entao a area util encolhe em vez de ficar com
+   metade escondida atras do menu. Abre e fecha SO por clique (botao da topbar
+   para abrir, "X" do proprio menu para fechar) — nada de abrir por proximidade
+   do cursor, que disparava sozinho quando o mouse passava rente a borda.
+
+   Em tela pequena o empurrao nao cabe: la ela volta a sobrepor (position fixed)
+   e fecha ao tocar fora, que e o gesto esperado no celular. */
+.gc-sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--gc-global-blue) 0%, var(--gc-global-blue-dark) 100%);
+  color: #D6E3F0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1040;
+  margin-left: calc(-1 * var(--sidebar-width));
+  transition: margin-left .22s ease;
+}
+.gc-sidebar.show { margin-left: 0; }
+
+/* Botao "X": fechar o menu e a unica saida em tela grande, entao ele precisa
+   estar sempre visivel no topo — nao escondido no rodape da lista. */
+.gc-sidebar-fechar {
+  position: absolute;
+  top: .6rem;
+  right: .6rem;
+  background: transparent;
+  border: 0;
+  color: #D6E3F0;
+  opacity: .75;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: .25rem .4rem;
+  border-radius: .35rem;
+}
+.gc-sidebar-fechar:hover { opacity: 1; background: rgba(255, 255, 255, .12); color: #fff; }
+
+@media (max-width: 991.98px) {
+  .gc-sidebar {
+    position: fixed;
+    top: 0;
+    left: calc(-1 * var(--sidebar-width) - 16px);
+    margin-left: 0;
+    transition: left .22s ease;
+  }
+  .gc-sidebar.show {
+    left: 0;
+    margin-left: 0;
+    box-shadow: .4rem 0 1.6rem rgba(0, 0, 0, .22);
+  }
+}
+
+/* Botão hambúrguer branco que abre/fixa o menu. */
+.gc-btn-menu {
+  background: #fff;
+  border: 1px solid var(--gc-border);
+  color: var(--gc-text);
+}
+.gc-btn-menu:hover { background: #F1F3F6; color: var(--gc-text); }
+
+/* ---------- Brand (logo GLOBAL) ---------- */
+.gc-sidebar .gc-brand {
+  padding: 1.15rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.gc-sidebar .gc-brand-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.gc-sidebar .gc-brand-logo {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.gc-sidebar .gc-brand-logo-full { max-height: 46px; }
+
+.gc-sidebar .gc-brand-logo-icon {
+  display: none;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+
+.gc-sidebar .gc-brand-subtitle {
+  display: block;
+  color: rgba(255,255,255,.82);
+  font-size: .74rem;
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1.2;
+}
+
+/* Envolve a área rolável do menu; ancora os botões flutuantes de rolagem */
+.gc-nav-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gc-nav {
+  padding: .75rem .65rem;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE / Edge legado */
+}
+.gc-nav::-webkit-scrollbar { width: 0; height: 0; display: none; } /* Chrome / Safari / Edge */
+
+/* ---------- Botões flutuantes de rolagem do menu ---------- */
+.gc-nav-scroll-btn {
+  position: absolute;
+  right: .3rem;
+  z-index: 5;
+  width: 1rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,.65);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--gc-global-blue);
+  font-size: .55rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 .25rem .65rem rgba(0,0,0,.35);
+  opacity: 1;
+  transition: background .15s ease, opacity .15s ease, transform .15s ease;
+}
+.gc-nav-scroll-btn:hover {
+  background: #fff;
+  color: var(--gc-navy);
+}
+.gc-nav-scroll-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  opacity: 1;
+}
+.gc-nav-scroll-btn[hidden] { display: none; }
+.gc-nav-scroll-up   { top: .35rem; }
+.gc-nav-scroll-down { bottom: .35rem; }
+
+.gc-nav .gc-nav-section {
+  text-transform: uppercase;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  color: rgba(255,255,255,.62);
+  padding: .9rem .6rem .35rem;
+  font-weight: 600;
+}
+
+.gc-nav a.gc-nav-link {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem .65rem;
+  border-radius: .5rem;
+  color: #C9D3DF;
+  text-decoration: none;
+  font-size: .875rem;
+  font-weight: 500;
+  transition: background .15s ease, color .15s ease;
+  margin-bottom: .15rem;
+}
+
+.gc-nav a.gc-nav-link i { font-size: 1rem; width: 1.25rem; text-align: center; }
+
+.gc-nav a.gc-nav-link:hover {
+  background: rgba(255,255,255,.06);
+  color: #fff;
+}
+
+.gc-nav a.gc-nav-link.active {
+  background: #fff;
+  color: var(--gc-global-blue);
+  font-weight: 600;
+}
+
+/* Submenu do Dashboard (admin) */
+.gc-nav a.gc-nav-link.gc-nav-sub {
+  padding-left: 2.1rem;
+  font-size: .82rem;
+  font-weight: 500;
+}
+.gc-nav .gc-nav-caret { font-size: .75rem !important; transition: transform .15s ease; }
+.gc-nav a.gc-nav-link[aria-expanded="true"] .gc-nav-caret { transform: rotate(180deg); }
+
+.gc-sidebar-footer {
+  padding: .85rem 1.1rem;
+  border-top: 1px solid rgba(255,255,255,.12);
+  font-size: .72rem;
+  color: rgba(255,255,255,.65);
+}
+
+/* ---------- Conteúdo principal ---------- */
+.gc-main { flex: 1; min-width: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+
+.gc-topbar {
+  background: var(--gc-card);
+  border-bottom: 1px solid var(--gc-border);
+  padding: .65rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.gc-topbar .gc-page-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--gc-navy);
+  margin: 0;
+}
+
+.gc-topbar .gc-breadcrumb { font-size: .78rem; color: var(--gc-text-muted); }
+
+.gc-content { padding: 1.5rem; flex: 1; }
+
+/* ---------- Cards ---------- */
+.card {
+  border: 1px solid var(--gc-border);
+  border-radius: .65rem;
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+}
+
+.gc-stat-card { border-radius: .75rem; border: 1px solid var(--gc-border); }
+.gc-stat-card .gc-stat-icon {
+  width: 42px; height: 42px; border-radius: .6rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+}
+.gc-stat-card .gc-stat-value { font-size: 1.6rem; font-weight: 700; color: var(--gc-navy); }
+.gc-stat-card .gc-stat-label { font-size: .78rem; color: var(--gc-text-muted); }
+
+/* Ícones dos cards de indicador — tons neutros (tema minimalista). */
+/* Tons de apoio do x-stat-card (o chip do icone).
+   As cinco classes eram IDENTICAS (#EEF1F4), entao todo tone="..." escrito nas
+   telas era ignorado em silencio e o sistema inteiro ficava chapado. Sao tints
+   das cores que ja estao no :root - fundo claro, icone escuro o bastante para
+   ler. O corpo do card continua branco: cor aqui e sinal, nao decoracao. */
+.bg-soft-teal   { background: #E2F6F3; color: #17796F; }
+.bg-soft-green  { background: #E6F3EB; color: #1F6E3F; }
+.bg-soft-amber  { background: #FCF1DF; color: #93610F; }
+.bg-soft-red    { background: #FBE9E5; color: #A33724; }
+.bg-soft-navy   { background: #E7EBF1; color: #24374F; }
+.bg-soft-blue   { background: #E1EDF7; color: #00549A; }
+
+/* ---------- Botoes ----------
+   A acao primaria sai do grafite quase preto para o navy do proprio tema: e
+   a mesma familia da barra lateral, entao o botao passa a ter identidade sem
+   virar um bloco de cor. O azul da marca (#00549A) foi testado e ficou forte
+   demais para 39 botoes espalhados pelo sistema. */
+.btn-gc-primary {
+  background: var(--gc-navy-soft);
+  border-color: var(--gc-navy-soft);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-gc-primary:hover { background: var(--gc-navy); border-color: var(--gc-navy); color: #fff; }
+.btn-gc-navy { background: #3D4757; border-color: #3D4757; color: #fff; }
+.btn-gc-navy:hover { background: #23272E; border-color: #23272E; color: #fff; }
+
+/* ---------- Badges de situacao ----------
+   Eram sete cinzas indistinguiveis: "Ativo", "Cancelada" e "Desligado" tinham
+   o mesmo peso visual. Agora a cor diz o estado. O que e AUSENCIA de estado
+   (desligado, inativo, saida) continua cinza de proposito — cinza tambem e
+   informacao quando o resto tem cor. */
+.badge-situacao { font-weight: 600; font-size: .72rem; padding: .35em .65em; border-radius: .4rem; }
+.badge-ativo        { background: var(--gc-suave-verde-bg);    color: var(--gc-suave-verde-fg); }
+.badge-aprovada     { background: var(--gc-suave-verde-bg);    color: var(--gc-suave-verde-fg); }
+.badge-resolvido    { background: var(--gc-suave-verde-bg);    color: var(--gc-suave-verde-fg); }
+.badge-pendente     { background: var(--gc-suave-ambar-bg);    color: var(--gc-suave-ambar-fg); }
+.badge-ajuste       { background: var(--gc-suave-ambar-bg);    color: var(--gc-suave-ambar-fg); }
+.badge-reprovada    { background: var(--gc-suave-vermelho-bg); color: var(--gc-suave-vermelho-fg); }
+.badge-cancelada    { background: var(--gc-suave-vermelho-bg); color: var(--gc-suave-vermelho-fg); }
+.badge-aberto       { background: var(--gc-suave-azul-bg);     color: var(--gc-suave-azul-fg); }
+.badge-entrada      { background: var(--gc-suave-azul-bg);     color: var(--gc-suave-azul-fg); }
+/* Desligado usa o MESMO vermelho do botao "Desligar da empresa" (o
+   --gc-suave-vermelho-fg do btn-outline-danger): a acao e o seu resultado
+   passam a se reconhecer na mesma tela. */
+.badge-desligado    { background: var(--gc-suave-vermelho-bg); color: var(--gc-suave-vermelho-fg); }
+.badge-inativo      { background: #F1F3F6; color: var(--gc-text-muted); }
+.badge-saida        { background: #F1F3F6; color: var(--gc-text-muted); }
+.badge-neutro       { background: #F1F3F6; color: #55606E; }
+
+/* ---------- Tabelas ---------- */
+.table-gc thead th {
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--gc-border);
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--gc-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.table-gc td { vertical-align: middle; font-size: .875rem; }
+.table-gc tbody tr:hover { background: #FAFBFD; }
+
+/* Listagem com rolagem própria (~10 registros visíveis) e cabeçalho fixo */
+.gc-lista-scroll { max-height: 430px; overflow-y: auto; }
+.gc-lista-scroll .table-gc thead th { position: sticky; top: 0; z-index: 2; background: #F8FAFC; }
+
+.gc-empty-state { text-align: center; padding: 3rem 1rem; color: var(--gc-text-muted); }
+.gc-empty-state i { font-size: 2.2rem; color: var(--gc-border); display: block; margin-bottom: .5rem; }
+
+/* ---------- Notificações (sino) ---------- */
+.gc-bell-btn { position: relative; }
+/* O ponto de nao lidas: cinza sobre um sino cinza nao chamava atencao
+   nenhuma, que e a unica funcao dele. */
+.gc-bell-dot {
+  position: absolute; top: 2px; right: 2px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--gc-solido-vermelho);
+  border: 2px solid #fff;
+}
+
+/* ---------- Toasts ---------- */
+.toast-container { z-index: 1080; }
+
+/* ---------- Formulários ---------- */
+label.form-label { font-weight: 600; font-size: .83rem; color: var(--gc-navy); }
+.form-control:focus, .form-select:focus {
+  border-color: #9AA3AF;
+  box-shadow: 0 0 0 .2rem rgba(61, 71, 87, .12);
+}
+.gc-required::after { content: " *"; color: var(--gc-red); }
+
+.form-check-input.gc-radio-vencedor {
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: .25rem;
+  border: 1.5px solid #555b64;
+  cursor: pointer;
+}
+.form-check-input.gc-radio-vencedor:checked {
+  background-color: #23272E;
+  border-color: #23272E;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23fff'%3e%3cpath d='M14.53 4.53l-8 8a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 111.06-1.06L6 10.94l7.47-7.47a.75.75 0 111.06 1.06z'/%3e%3c/svg%3e");
+}
+.form-check-input.gc-radio-vencedor:focus {
+  border-color: #9AA3AF;
+  box-shadow: 0 0 0 .2rem rgba(61, 71, 87, .12);
+}
+
+/* ---------- Itens dinâmicos (solicitação de compra) ---------- */
+.gc-item-row { background: #FAFBFD; border: 1px solid var(--gc-border); border-radius: .5rem; padding: .85rem; margin-bottom: .65rem; }
+
+@media (max-width: 991.98px) {
+  /* Marca compacta: só o ícone GLOBAL em telas menores */
+  .gc-sidebar .gc-brand-logo-full { display: none; }
+  .gc-sidebar .gc-brand-logo-icon { display: block; }
+  .gc-sidebar .gc-brand-subtitle { font-size: .7rem; }
+}
+
+/* ---------- Alerta / confirmação padrão (gcAlert / gcConfirm) ---------- */
+.gc-alert-modal .gc-alert-content {
+  border: none;
+  border-radius: .75rem;
+  box-shadow: 0 1.25rem 2.5rem rgba(22,36,59,.22);
+  overflow: hidden;
+}
+.gc-alert-modal .modal-header {
+  align-items: center;
+  gap: .65rem;
+  padding: 1.1rem 1.25rem .35rem;
+}
+.gc-alert-modal .modal-title { font-size: 1.02rem; margin: 0; }
+.gc-alert-modal .modal-body { padding: .35rem 1.25rem 1rem; color: var(--gc-text); }
+.gc-alert-modal .modal-footer { padding: .5rem 1.1rem 1.1rem; }
+
+.gc-alert-modal .gc-alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem; height: 2.4rem;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* O icone do modal e o unico ponto de cor dele: o titulo e o texto continuam
+   escuros, entao a cor diz o TIPO do aviso sem gritar. */
+.gc-alert-content.gc-alert-success .gc-alert-icon { background: var(--gc-suave-verde-bg);    color: var(--gc-suave-verde-fg); }
+.gc-alert-content.gc-alert-error   .gc-alert-icon { background: var(--gc-suave-vermelho-bg); color: var(--gc-suave-vermelho-fg); }
+.gc-alert-content.gc-alert-warning .gc-alert-icon { background: var(--gc-suave-ambar-bg);    color: var(--gc-suave-ambar-fg); }
+.gc-alert-content.gc-alert-info    .gc-alert-icon { background: var(--gc-suave-azul-bg);     color: var(--gc-suave-azul-fg); }
+
+.gc-alert-content.gc-alert-success .modal-title,
+.gc-alert-content.gc-alert-error   .modal-title,
+.gc-alert-content.gc-alert-warning .modal-title,
+.gc-alert-content.gc-alert-info    .modal-title { color: #23272E; }
+
+/* Botao extra-compacto (~50% do btn-sm) - filtros e grupos densos.
+   Sobrescreve tambem as variaveis --bs-btn-* (o .btn do Bootstrap 5.3
+   dimensiona por elas) e usa !important para vencer qualquer disputa de
+   cascata/ordem de carregamento com o CSS do CDN. */
+/* Botao de filtro/limpar das listagens: 25% maior que o btn-gc-xs. */
+.btn-gc-filtro {
+  --bs-btn-padding-y: .125rem;
+  --bs-btn-padding-x: .5rem;
+  --bs-btn-font-size: .9rem;
+  padding: .125rem .5rem !important;
+  font-size: .9rem !important;
+  line-height: 1.4 !important;
+}
+
+.btn-gc-xs,
+.btn-group-gc-xs > .btn {
+  --bs-btn-padding-y: .1rem;
+  --bs-btn-padding-x: .4rem;
+  --bs-btn-font-size: .72rem;
+  padding: .1rem .4rem !important;
+  font-size: .72rem !important;
+  line-height: 1.4 !important;
+}
+
+/* =======================================================================
+   Paleta suave das utilitarias do Bootstrap no CONTEUDO (.gc-main).
+
+   Aqui existia uma NEUTRALIZACAO: as classes abaixo eram todas achatadas
+   para o mesmo #EEF1F4 com !important. O efeito colateral era grave — a cor
+   semantica escrita nas telas nunca chegava a aparecer: no espelho de ponto,
+   "Em aberto" (ambar) e "Falta" (vermelho) sairam iguais ao dia normal, e o
+   saldo negativo em text-danger saia cinza.
+
+   A direcao continua sobria: fundo de card branco, cabecalho de tabela e
+   botao de acao secundaria em cinza. O que muda e que a cor volta a
+   funcionar, em tons dessaturados — ver os tokens --gc-suave-* no :root.
+
+   Validacao de formulario (is-invalid / invalid-feedback) fica de fora, no
+   padrao do Bootstrap: e um sinal que todo mundo ja reconhece.
+   ======================================================================= */
+.gc-main .text-bg-success   { background-color: var(--gc-suave-verde-bg) !important;    color: var(--gc-suave-verde-fg) !important; }
+.gc-main .text-bg-warning   { background-color: var(--gc-suave-ambar-bg) !important;    color: var(--gc-suave-ambar-fg) !important; }
+.gc-main .text-bg-danger    { background-color: var(--gc-suave-vermelho-bg) !important; color: var(--gc-suave-vermelho-fg) !important; }
+.gc-main .text-bg-info,
+.gc-main .text-bg-primary   { background-color: var(--gc-suave-azul-bg) !important;     color: var(--gc-suave-azul-fg) !important; }
+.gc-main .text-bg-secondary { background-color: var(--gc-suave-neutro-bg) !important;   color: var(--gc-suave-neutro-fg) !important; }
+
+/* Acao destrutiva: tijolo, nao alarme. Continua discreta (so contorno), mas
+   para de parecer um botao neutro ao lado do "editar". */
+.gc-main .btn-outline-danger {
+  --bs-btn-color: var(--gc-suave-vermelho-fg);
+  --bs-btn-border-color: #DFB6AC;
+  --bs-btn-hover-bg: var(--gc-suave-vermelho-bg);
+  --bs-btn-hover-color: #7F2A1B;
+  --bs-btn-hover-border-color: #C2897B;
+  --bs-btn-active-bg: #F5DBD4;
+  --bs-btn-active-color: #7F2A1B;
+  --bs-btn-active-border-color: #C2897B;
+}
+.gc-main .btn-outline-success {
+  --bs-btn-color: var(--gc-suave-verde-fg);
+  --bs-btn-border-color: #AFCFBC;
+  --bs-btn-hover-bg: var(--gc-suave-verde-bg);
+  --bs-btn-hover-color: #17542F;
+  --bs-btn-hover-border-color: #8FBBA1;
+  --bs-btn-active-bg: #D8EBDF;
+  --bs-btn-active-color: #17542F;
+  --bs-btn-active-border-color: #8FBBA1;
+}
+.gc-main .btn-success { background-color: var(--gc-solido-verde) !important; border-color: var(--gc-solido-verde) !important; color: #fff !important; }
+
+/* btn-warning nunca passou pela neutralizacao antiga, entao ate hoje era o
+   amarelo cru do Bootstrap (#ffc107) — o ponto mais berrante do sistema. */
+.gc-main .btn-warning {
+  background-color: var(--gc-suave-ambar-bg) !important;
+  border-color: #E3C48A !important;
+  color: var(--gc-suave-ambar-fg) !important;
+}
+.gc-main .btn-warning:hover { background-color: #F7E6C8 !important; border-color: #D6B072 !important; }
+
+/* btn-outline-secondary (56 usos: ver, editar, abrir espelho) fica NEUTRO de
+   propósito. Colorir a acao rotineira mataria o contraste das que importam. */
+
+.gc-main .progress-bar { background-color: #7A8595; }
+.gc-main .progress-bar.bg-success { background-color: var(--gc-solido-verde) !important; }
+
+.gc-main .table-danger,
+.gc-main .table-danger > td,
+.gc-main .table-danger > th { --bs-table-bg: var(--gc-suave-vermelho-bg); --bs-table-color: #7F2A1B; }
+
+.gc-main .alert-warning {
+  --bs-alert-bg: var(--gc-suave-ambar-bg);
+  --bs-alert-color: var(--gc-suave-ambar-fg);
+  --bs-alert-border-color: #F0DDB6;
+}
+.gc-main .alert-danger {
+  --bs-alert-bg: var(--gc-suave-vermelho-bg);
+  --bs-alert-color: var(--gc-suave-vermelho-fg);
+  --bs-alert-border-color: #EFCDC4;
+}
+.gc-main .alert-success {
+  --bs-alert-bg: var(--gc-suave-verde-bg);
+  --bs-alert-color: var(--gc-suave-verde-fg);
+  --bs-alert-border-color: #C6E0D0;
+}
+.gc-main .alert-info {
+  --bs-alert-bg: var(--gc-suave-azul-bg);
+  --bs-alert-color: var(--gc-suave-azul-fg);
+  --bs-alert-border-color: #C4DCEF;
+}
+
+.gc-main .text-warning,
+.gc-main .text-warning-emphasis { color: var(--gc-suave-ambar-fg) !important; }
+.gc-main .text-danger:not(.invalid-feedback) { color: var(--gc-suave-vermelho-fg) !important; }
+.gc-main .text-success { color: var(--gc-suave-verde-fg) !important; }
+.gc-main .border-warning { border-color: #E3C48A !important; }
+.gc-main .bg-warning-subtle { background-color: var(--gc-suave-ambar-bg) !important; }
+
+/* Fora de .gc-main: modais e toasts vivem no fim do <body>. O toast e o
+   momento "alto" do sistema, entao e solido — mas na mesma familia
+   dessaturada, nao no verde/vermelho cru do Bootstrap. */
+.toast.text-bg-success { background-color: var(--gc-solido-verde) !important; }
+.toast.text-bg-danger  { background-color: var(--gc-solido-vermelho) !important; }
+.btn-danger { background-color: var(--gc-solido-vermelho); border-color: var(--gc-solido-vermelho); }
+.btn-danger:hover, .btn-danger:focus { background-color: #99422F; border-color: #99422F; }
+
+/* Valor sugerido pelo cadastro (pre-preenchimento do lote): fundo sutil ate
+   ser guardado/lancado. */
+.gc-sugestao { background-color: #F4F6F9; }
+
+/* Botoes de presenca do diario (excecao aprovada ao tema minimalista):
+   Presente verde, Falta c/ atestado cinza, Falta s/ atestado vermelho. */
+.btn-presenca-presente { color: #2F9E5B; border-color: #2F9E5B; }
+.btn-check:checked + .btn-presenca-presente,
+.btn-presenca-presente:hover { background: #2F9E5B !important; border-color: #2F9E5B !important; color: #fff !important; }
+
+.btn-presenca-atestado { color: #6B7686; border-color: #9AA3AF; }
+.btn-check:checked + .btn-presenca-atestado,
+.btn-presenca-atestado:hover { background: #6B7686 !important; border-color: #6B7686 !important; color: #fff !important; }
+
+.btn-presenca-falta { color: #E2553B; border-color: #E2553B; }
+.btn-check:checked + .btn-presenca-falta,
+.btn-presenca-falta:hover { background: #E2553B !important; border-color: #E2553B !important; color: #fff !important; }
+
+/* ===========================================================================
+   Espelho de ponto — leitura do mes
+
+   O mes sao 31 linhas e o que o DP procura sao as 4 ou 5 com pendencia. Sem
+   hierarquia, o dia que precisa de acerto tem o mesmo peso dos 26 que estao
+   certos. Aqui a hora trabalhada e o dado grande; o resto e apoio.
+   =========================================================================== */
+
+/* Numeros alinham na vertical entre linhas (1 e 7 ocupam a mesma largura). */
+.gc-num { font-variant-numeric: tabular-nums; }
+
+.gc-espelho td { padding-top: .55rem; padding-bottom: .55rem; }
+
+.gc-espelho-dia { font-size: 1.15rem; font-weight: 600; line-height: 1.05; color: var(--gc-text); }
+.gc-espelho-semana-dia { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--gc-text-muted); }
+
+.gc-espelho-horas { font-size: 1rem; font-weight: 600; line-height: 1.15; }
+.gc-espelho-previsto { font-size: .7rem; color: var(--gc-text-muted); line-height: 1.3; }
+.gc-espelho-extra { font-size: .7rem; font-weight: 600; color: var(--gc-amber); line-height: 1.3; }
+
+.gc-batidas { font-size: .82rem; }
+
+/* Pastilha da batida: diz o PAPEL dela (entrada, pausa, retorno, saida) sem
+   disputar atencao com os alertas do dia. Por isso tons suaves e frios: no
+   espelho, cor forte e reservada para o que pede acao (falta, atraso, revisar).
+
+   Vermelho ficou de fora de proposito: no sistema inteiro ele significa
+   problema, e sair as 18h e o desfecho normal do dia. O par verde (comeca) e
+   azul (termina) resolve sem ensinar o olho errado.
+
+   O icone vai junto da cor porque cor sozinha nao sobrevive ao daltonismo nem
+   a folha de ponto impressa em preto e branco. */
+.gc-batida {
+    display: inline-flex; align-items: baseline; gap: .3rem;
+    padding: .15rem .45rem; border-radius: .4rem;
+    line-height: 1.3; text-decoration: none;
+    border: 1px solid transparent;
+}
+.gc-batida:hover { filter: brightness(.96); }
+.gc-batida i { font-size: .78em; opacity: .85; }
+
+.gc-batida-entrada  { background: var(--gc-suave-verde-bg);  color: var(--gc-suave-verde-fg); }
+.gc-batida-pausa,
+.gc-batida-retorno  { background: var(--gc-suave-neutro-bg); color: var(--gc-suave-neutro-fg); }
+.gc-batida-saida    { background: var(--gc-suave-azul-bg);   color: var(--gc-suave-azul-fg); }
+
+/* Batida sem par num dia impar: nao da para saber se e a volta do almoco ou a
+   saida do dia, entao ela nao ganha direcao nenhuma. A borda tracejada diz
+   "falta alguma coisa aqui" sem gritar — o selo "conferir" do dia ja grita. */
+.gc-batida-sem-par {
+    background: transparent; color: var(--gc-suave-ambar-fg);
+    border-style: dashed; border-color: var(--gc-amber);
+}
+
+/* Anulada continua legivel, mas sai do primeiro plano: o registro tem de
+   aparecer (anulacao que some e anulacao que ninguem audita) sem competir com
+   as batidas que valem. */
+.gc-batida-anulada {
+    background: transparent; color: var(--gc-text-muted);
+    border-color: var(--gc-border); text-decoration: line-through;
+}
+
+.gc-batida-legenda { font-size: .7rem; color: var(--gc-text-muted); }
+.gc-batida-legenda .gc-batida { padding: .05rem .35rem; font-size: .7rem; }
+
+/* Faixa que separa grupos dentro de uma tabela longa: semanas no espelho de um
+   colaborador, setores na lista do mes. Carrega o subtotal do grupo, que e
+   como o DP confere ("a semana passada fechou?", "quanto a producao faltou?"). */
+.gc-faixa-grupo td {
+  background: #EEF1F4;
+  color: #55606E;
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: .35rem .75rem;
+}
+
+/* Faixa que recolhe o grupo (setores na lista do mes). O botao herda tudo da
+   faixa: e a faixa inteira que e clicavel, nao um alvo pequeno na ponta. */
+.gc-faixa-toggle {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.gc-faixa-toggle:hover { color: var(--gc-text); }
+.gc-faixa-toggle:focus-visible { outline: 2px solid var(--gc-global-blue); outline-offset: 2px; }
+
+.gc-faixa-seta { display: inline-block; transition: transform .15s ease; }
+.gc-faixa-toggle[aria-expanded="false"] .gc-faixa-seta { transform: rotate(-90deg); }
+
+/* Marcador na lateral: pendencia (ambar) vence dia so modificado (cinza). */
+.gc-espelho tr[data-ajustado="1"] > td:first-child  { box-shadow: inset 3px 0 0 #9AA3AF; }
+.gc-espelho tr[data-pendencia="1"] > td:first-child { box-shadow: inset 3px 0 0 var(--gc-amber); }
+
+/* Dia sem nada a mostrar recua, mas NAO some: sabado e domingo e onde a hora
+   extra acontece por aqui. */
+.gc-espelho tr[data-vazio="1"] .gc-espelho-dia { font-weight: 500; color: var(--gc-text-muted); }
