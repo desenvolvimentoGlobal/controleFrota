@@ -30,7 +30,7 @@ class Ocorrencia extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function item(): BelongsTo
@@ -50,12 +50,12 @@ class Ocorrencia extends Model
 
     public function apontadaPor(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'apontada_por_id');
+        return $this->belongsTo(Usuario::class, 'apontada_por_id')->withTrashed();
     }
 
     public function revisadaPor(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'revisada_por_id');
+        return $this->belongsTo(Usuario::class, 'revisada_por_id')->withTrashed();
     }
 
     public function manutencao(): BelongsTo

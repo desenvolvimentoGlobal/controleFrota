@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Operacao;
 
+use App\Enums\SituacaoAlocacao;
 use App\Enums\SituacaoOcorrencia;
 use App\Http\Controllers\Concerns\FiltrosPersistentes;
 use App\Http\Controllers\Controller;
@@ -53,9 +54,15 @@ class OcorrenciaController extends Controller
             'alocacaoResponsavel.motorista', 'manutencao',
         ]);
 
-        $outrasAlocacoes = $request->user()->can('revisar', $ocorrencia)
+        // Candidatas à reatribuição: concluídas deste veículo cujo motorista o
+        // revisor pode responsabilizar (admin: qualquer um; gestor: a equipe).
+        $usuario = $request->user();
+        $outrasAlocacoes = $usuario->can('revisar', $ocorrencia)
             ? Alocacao::with('motorista:id,nome')->where('veiculo_id', $ocorrencia->veiculo_id)
-                ->whereNotNull('retorno_real')->orderByDesc('retorno_real')->limit(10)->get()
+                ->where('situacao', SituacaoAlocacao::Concluida->value)
+                ->whereKeyNot((int) $ocorrencia->alocacao_responsavel_id)
+                ->when(! $usuario->ehAdmin(), fn ($q) => $q->whereIn('motorista_id', $usuario->idsDaEquipe()))
+                ->orderByDesc('retorno_real')->limit(10)->get()
             : collect();
 
         return view('ocorrencias.show', compact('ocorrencia', 'outrasAlocacoes'));
@@ -79,17 +86,20 @@ class OcorrenciaController extends Controller
     {
         $this->authorize('revisar', $ocorrencia);
         $dados = $request->validate([
-            'decisao' => ['required', 'in:confirmada,descartada'],
+            'decisao' => ['required', 'in:confirmada,descartada,reatribuida'],
             'observacao_revisao' => ['nullable', 'string', 'max:1000'],
-            'alocacao_responsavel_id' => ['nullable', 'exists:alocacoes,id'],
-        ], [], ['decisao' => 'decisão', 'observacao_revisao' => 'observação', 'alocacao_responsavel_id' => 'responsável']);
+            'alocacao_responsavel_id' => ['nullable', 'required_if:decisao,reatribuida', 'integer'],
+        ], ['alocacao_responsavel_id.required_if' => 'Escolha a alocação que passa a ser responsável.'],
+            ['decisao' => 'decisão', 'observacao_revisao' => 'observação', 'alocacao_responsavel_id' => 'responsável']);
 
         try {
-            $this->servico->revisar(
-                $ocorrencia, $request->user(), SituacaoOcorrencia::from($dados['decisao']),
-                $dados['observacao_revisao'] ?? null,
-                isset($dados['alocacao_responsavel_id']) ? (int) $dados['alocacao_responsavel_id'] : null,
-            );
+            if ($dados['decisao'] === 'reatribuida') {
+                $this->servico->reatribuir($ocorrencia, $request->user(), (int) $dados['alocacao_responsavel_id'], $dados['observacao_revisao'] ?? null);
+
+                return back()->with('sucesso', 'Responsável alterado. A ocorrência continua aberta e o novo responsável foi avisado.');
+            }
+
+            $this->servico->revisar($ocorrencia, $request->user(), SituacaoOcorrencia::from($dados['decisao']), $dados['observacao_revisao'] ?? null);
         } catch (\DomainException $e) {
             return back()->with('erro', $e->getMessage());
         }

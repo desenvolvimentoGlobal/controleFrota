@@ -21,7 +21,7 @@ class Manutencao extends Model
     protected $fillable = [
         'veiculo_id', 'tipo', 'nome', 'descricao_problema', 'fornecedor_id', 'preco_previsto', 'preco_final',
         'prazo', 'localizacao', 'km_abertura', 'km_conclusao', 'situacao', 'sistemas', 'bloqueou_veiculo', 'aberta_por_id', 'responsavel_id',
-        'ocorrencia_id', 'plano_manutencao_id', 'inicio_prestacao_em', 'concluida_em', 'motivo_cancelamento', 'observacoes',
+        'ocorrencia_id', 'plano_manutencao_id', 'inicio_prestacao_em', 'situacao_antes_prestacao', 'concluida_em', 'motivo_cancelamento', 'observacoes',
     ];
 
     protected function casts(): array
@@ -41,7 +41,7 @@ class Manutencao extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function fornecedor(): BelongsTo
@@ -51,12 +51,12 @@ class Manutencao extends Model
 
     public function abertaPor(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'aberta_por_id');
+        return $this->belongsTo(Usuario::class, 'aberta_por_id')->withTrashed();
     }
 
     public function responsavel(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'responsavel_id');
+        return $this->belongsTo(Usuario::class, 'responsavel_id')->withTrashed();
     }
 
     public function ocorrencia(): BelongsTo

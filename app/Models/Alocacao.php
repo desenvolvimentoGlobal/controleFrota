@@ -40,22 +40,22 @@ class Alocacao extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function motorista(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'motorista_id');
+        return $this->belongsTo(Usuario::class, 'motorista_id')->withTrashed();
     }
 
     public function solicitante(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'solicitante_id');
+        return $this->belongsTo(Usuario::class, 'solicitante_id')->withTrashed();
     }
 
     public function aprovador(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'aprovador_id');
+        return $this->belongsTo(Usuario::class, 'aprovador_id')->withTrashed();
     }
 
     public function checagens(): HasMany

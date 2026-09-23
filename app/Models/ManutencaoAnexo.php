@@ -21,7 +21,7 @@ class ManutencaoAnexo extends Model
 
     public function enviadoPor(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'enviado_por_id');
+        return $this->belongsTo(Usuario::class, 'enviado_por_id')->withTrashed();
     }
 
     public function ehImagem(): bool

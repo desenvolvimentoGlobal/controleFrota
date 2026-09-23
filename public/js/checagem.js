@@ -72,11 +72,10 @@
             if (!resposta) return;
             if (!arquivo && preview.classList.contains('d-none')) { mostrarErro('Tire a foto primeiro.'); return; }
             if (resposta === 'anomalia' && !observacao.value.trim()) { mostrarErro('Descreva a anomalia.'); return; }
-            // Sem arquivo novo mas com foto já enviada: só reenvia se houver arquivo.
-            if (!arquivo) { mostrarErro('Para mudar a resposta, tire a foto novamente.'); return; }
 
+            // Sem arquivo novo, a foto já enviada fica e só a resposta muda.
             const dados = new FormData();
-            dados.append('foto', arquivo);
+            if (arquivo) dados.append('foto', arquivo);
             dados.append('situacao', resposta);
             dados.append('observacao', observacao.value);
 

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\SituacaoAlocacao;
 use App\Http\Controllers\Concerns\FiltrosPersistentes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Usuario\SalvarUsuarioRequest;
+use App\Models\Alocacao;
 use App\Models\Cargo;
 use App\Models\Perfil;
 use App\Models\Setor;
@@ -114,6 +116,13 @@ class UsuarioController extends Controller
             unset($dados['senha']);
         }
 
+        if ($usuario->ativo && ! $dados['ativo'] && ($impedimento = $this->impedimentoParaDesligar($usuario))) {
+            return back()->withInput()->with('erro', $impedimento);
+        }
+        if ($usuario->id === auth()->id() && ! $dados['ativo']) {
+            return back()->withInput()->with('erro', 'Você não pode inativar o próprio usuário.');
+        }
+
         if ($request->boolean('remover_foto') || $request->hasFile('foto')) {
             $this->apagarFoto($usuario);
             $dados['foto_path'] = $this->salvarFoto($request);
@@ -141,6 +150,9 @@ class UsuarioController extends Controller
         if ($usuario->subordinados()->exists()) {
             return back()->with('erro', 'Este usuário é gestor de outras pessoas. Transfira a equipe antes de excluir.');
         }
+        if ($impedimento = $this->impedimentoParaDesligar($usuario)) {
+            return back()->with('erro', $impedimento);
+        }
 
         $usuario->delete();
 
@@ -154,6 +166,9 @@ class UsuarioController extends Controller
         if ($usuario->id === auth()->id()) {
             return back()->with('erro', 'Você não pode inativar o próprio usuário.');
         }
+        if ($usuario->ativo && ($impedimento = $this->impedimentoParaDesligar($usuario))) {
+            return back()->with('erro', $impedimento);
+        }
 
         $usuario->update(['ativo' => ! $usuario->ativo]);
 
@@ -161,6 +176,26 @@ class UsuarioController extends Controller
     }
 
     // ─── Apoio ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Quem está com um carro (ou com saída aprovada) não pode sumir do
+     * sistema: ninguém mais conseguiria fazer a checagem de retorno.
+     */
+    private function impedimentoParaDesligar(Usuario $usuario): ?string
+    {
+        $alocacao = Alocacao::with('veiculo:id,nome')
+            ->where('motorista_id', $usuario->id)
+            ->whereIn('situacao', [SituacaoAlocacao::Aprovada->value, SituacaoAlocacao::EmUso->value])
+            ->first();
+
+        if ($alocacao === null) {
+            return null;
+        }
+
+        return $alocacao->situacao === SituacaoAlocacao::EmUso
+            ? "{$usuario->nome} está com o veículo {$alocacao->veiculo->nome}. Faça a checagem de retorno ou peça ao admin para encerrar a alocação #{$alocacao->id} antes."
+            : "{$usuario->nome} tem a alocação #{$alocacao->id} aprovada. Cancele-a antes.";
+    }
 
     /** @return array<string, mixed> */
     private function opcoesFormulario(?Usuario $editando = null): array

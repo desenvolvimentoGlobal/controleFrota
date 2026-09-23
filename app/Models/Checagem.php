@@ -42,12 +42,12 @@ class Checagem extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function motorista(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'motorista_id');
+        return $this->belongsTo(Usuario::class, 'motorista_id')->withTrashed();
     }
 
     public function anterior(): BelongsTo
@@ -57,7 +57,7 @@ class Checagem extends Model
 
     public function revisadaPor(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'revisada_por_id');
+        return $this->belongsTo(Usuario::class, 'revisada_por_id')->withTrashed();
     }
 
     public function itens(): HasMany
@@ -78,7 +78,11 @@ class Checagem extends Model
     /** Itens ainda sem foto ou sem resposta. */
     public function itensPendentes(): int
     {
-        return $this->itens->filter(fn (ChecagemItem $i) => $i->situacao === SituacaoItemChecagem::Pendente || $i->fotos->isEmpty())->count();
+        // Usa a relação que a tela carregou (fotoAtual ou fotos): com o modo
+        // estrito do Eloquent, acessar uma não carregada dá erro em coleção.
+        $semFoto = fn (ChecagemItem $i) => $i->relationLoaded('fotoAtual') ? $i->fotoAtual === null : $i->fotos->isEmpty();
+
+        return $this->itens->filter(fn (ChecagemItem $i) => $i->situacao === SituacaoItemChecagem::Pendente || $semFoto($i))->count();
     }
 
     public function itensComAnomalia(): int

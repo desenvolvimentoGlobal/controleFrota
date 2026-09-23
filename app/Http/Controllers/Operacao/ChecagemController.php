@@ -11,6 +11,8 @@ use App\Models\Alocacao;
 use App\Models\Checagem;
 use App\Models\ChecagemFoto;
 use App\Models\ChecagemItem;
+use App\Models\Ocorrencia;
+use App\Models\Usuario;
 use App\Models\Veiculo;
 use App\Services\ChecagemService;
 use Illuminate\Http\JsonResponse;
@@ -70,7 +72,8 @@ class ChecagemController extends Controller
         abort_unless($item->checagem_id === $checagem->id, 404);
 
         $dados = $request->validate([
-            'foto' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.(int) config('frota.checagem.foto_max_kb', 4096)],
+            // Opcional quando o item já tem foto: trocar só a resposta.
+            'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.(int) config('frota.checagem.foto_max_kb', 4096)],
             'situacao' => ['required', 'in:conforme,anomalia'],
             'observacao' => ['nullable', 'string', 'max:500'],
         ], [], ['foto' => 'foto', 'situacao' => 'resposta', 'observacao' => 'observação']);
@@ -144,14 +147,46 @@ class ChecagemController extends Controller
         return view('checagens.historico', compact('veiculo', 'checagens'));
     }
 
-    /** Serve a foto do disco privado para usuário autenticado. */
-    public function foto(ChecagemFoto $foto): StreamedResponse
+    /**
+     * Serve a foto do disco privado. Os ids são sequenciais, então a rota
+     * confere quem pode ver: admin/gestor (cuidam da frota), quem vê a
+     * alocação, o motorista que usa a foto como comparação e os envolvidos
+     * numa ocorrência que a cita.
+     */
+    public function foto(ChecagemFoto $foto, Request $request): StreamedResponse
     {
+        abort_unless($this->podeVerFoto($foto, $request->user()), 403);
         abort_if($foto->apagada_em !== null, 404, 'Foto removida pela política de retenção.');
         abort_unless(Storage::disk(ChecagemService::DISCO)->exists($foto->caminho), 404);
 
         return Storage::disk(ChecagemService::DISCO)->response($foto->caminho, $foto->nome_original, [
             'Cache-Control' => 'private, max-age=86400',
         ]);
+    }
+
+    private function podeVerFoto(ChecagemFoto $foto, Usuario $usuario): bool
+    {
+        if ($usuario->temAlgumPerfil('admin', 'gestor')) {
+            return true;
+        }
+
+        $item = $foto->item()->with('checagem.alocacao')->firstOrFail();
+        $checagem = $item->checagem;
+
+        if ($usuario->can('view', $checagem->alocacao)) {
+            return true;
+        }
+
+        // Foto de referência da checagem que este usuário está fazendo/fez.
+        $usadaComoComparacao = Checagem::where('checagem_anterior_id', $checagem->id)
+            ->where('motorista_id', $usuario->id)->exists();
+
+        if ($usadaComoComparacao) {
+            return true;
+        }
+
+        $ocorrencias = Ocorrencia::where('checagem_item_id', $item->id)->orWhere('checagem_item_anterior_id', $item->id)->get();
+
+        return $ocorrencias->contains(fn (Ocorrencia $o) => $usuario->can('view', $o));
     }
 }

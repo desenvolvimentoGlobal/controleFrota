@@ -170,8 +170,27 @@ class AlocacaoChecagemTest extends TestCase
         $this->actingAs($this->motorista1)->get(route('alocacoes.show', $alocacao1))->assertOk();
         $this->actingAs($this->motorista1)->get(route('alocacoes.show', $alocacao2))->assertForbidden();
         $this->actingAs($this->gestor)->get(route('alocacoes.show', $alocacao2))->assertOk();
-        $foto = ChecagemFoto::whereHas('item', fn ($q) => $q->where('checagem_id', $saida2->id))->firstOrFail();
-        $this->actingAs($this->motorista1)->get(route('checagens.foto', $foto))->assertOk();
+        // Fotos: o responsável presumido vê a foto da anomalia contra ele, mas
+        // não as demais fotos da checagem do outro motorista.
+        $fotoAnomalia = ChecagemFoto::whereHas('item', fn ($q) => $q->where('checagem_id', $saida2->id)->where('item', 'lataria_frente'))->firstOrFail();
+        $outraFoto = ChecagemFoto::whereHas('item', fn ($q) => $q->where('checagem_id', $saida2->id)->where('item', 'odometro'))->firstOrFail();
+        $this->actingAs($this->motorista1)->get(route('checagens.foto', $fotoAnomalia))->assertOk();
+        $this->actingAs($this->motorista1)->get(route('checagens.foto', $outraFoto))->assertForbidden();
+        $this->actingAs($this->motorista2)->get(route('checagens.foto', $outraFoto))->assertOk();
+        $this->actingAs($this->gestor)->get(route('checagens.foto', $outraFoto))->assertOk();
+    }
+
+    public function test_primeira_checagem_do_veiculo_nao_gera_ocorrencia(): void
+    {
+        $this->actingAs($this->gestor)->post(route('alocacoes.store'), $this->dadosAlocacao($this->gestor));
+        $alocacao = Alocacao::firstOrFail();
+        $this->actingAs($this->gestor)->post(route('alocacoes.checagem', $alocacao));
+        $saida = $alocacao->checagemSaida()->firstOrFail();
+        $this->responderItens($saida, $this->gestor, ['lataria_frente' => 'Risco antigo']);
+        $this->concluir($saida, $this->gestor, 1000);
+
+        $this->assertSame(0, Ocorrencia::count(), 'a primeira checagem é a referência inicial');
+        $this->assertSame('anomalia', $saida->itens()->where('item', 'lataria_frente')->value('situacao')->value);
     }
 
     public function test_conflito_de_agenda_veiculo_critico_e_motorista_nao_apto(): void
@@ -218,36 +237,68 @@ class AlocacaoChecagemTest extends TestCase
         $this->assertSame(SituacaoAlocacao::Cancelada, $alocacao->fresh()->situacao);
         $this->assertSame(SituacaoVeiculo::Disponivel, $this->veiculo->fresh()->situacao);
 
-        // Atraso: em uso com retorno previsto no passado.
-        $this->actingAs($this->gestor)->post(route('alocacoes.store'), $this->dadosAlocacao($this->gestor, [
-            'saida_prevista' => now()->subHours(3)->format('Y-m-d H:i'), 'retorno_previsto' => now()->subHour()->format('Y-m-d H:i'),
-        ]));
+        // Atraso: sai dentro do período e o relógio passa do retorno previsto.
+        $this->actingAs($this->gestor)->post(route('alocacoes.store'), $this->dadosAlocacao($this->gestor));
         $atrasada = Alocacao::latest('id')->firstOrFail();
         $this->actingAs($this->gestor)->post(route('alocacoes.checagem', $atrasada));
         $saida = $atrasada->checagemSaida()->firstOrFail();
         $this->responderItens($saida, $this->gestor);
         $this->concluir($saida, $this->gestor, 1000);
 
-        $this->artisan('alocacoes:marcar-atrasadas')->assertSuccessful();
+        $this->travel(6)->hours();
+        $this->artisan('alocacoes:sincronizar')->assertSuccessful();
         $this->assertNotNull($atrasada->fresh()->atrasada_em);
         $this->assertTrue(Notificacao::where('usuario_id', $this->admin->id)->where('tipo', 'alocacao_atrasada')->exists());
     }
 
+    public function test_sincronizar_reserva_no_dia_e_expira_aprovada_que_nao_saiu(): void
+    {
+        // Aprovada amanhã: não reserva agora.
+        $this->actingAs($this->gestor)->post(route('alocacoes.store'), $this->dadosAlocacao($this->gestor, [
+            'saida_prevista' => now()->addDay()->setTime(9, 0)->format('Y-m-d H:i'),
+            'retorno_previsto' => now()->addDay()->setTime(12, 0)->format('Y-m-d H:i'),
+        ]));
+        $alocacao = Alocacao::firstOrFail();
+        $this->assertSame(SituacaoVeiculo::Disponivel, $this->veiculo->fresh()->situacao);
+
+        // No dia, às 07h: a rotina reserva.
+        $this->travelTo(now()->addDay()->setTime(7, 0));
+        $this->artisan('alocacoes:sincronizar')->assertSuccessful();
+        $this->assertSame(SituacaoVeiculo::Reservado, $this->veiculo->fresh()->situacao);
+
+        // Passou o retorno previsto sem saída: expira e libera o carro.
+        $this->travelTo(now()->setTime(13, 0));
+        $this->artisan('alocacoes:sincronizar')->assertSuccessful();
+        $this->assertSame(SituacaoAlocacao::Cancelada, $alocacao->fresh()->situacao);
+        $this->assertStringContainsString('Expirada', $alocacao->fresh()->motivo_recusa);
+        $this->assertSame(SituacaoVeiculo::Disponivel, $this->veiculo->fresh()->situacao);
+    }
+
     public function test_retencao_apaga_fotos_antigas_mas_preserva_ocorrencia_aberta(): void
     {
+        // Saída (referência inicial) e retorno com anomalia → ocorrência aberta.
         $this->actingAs($this->gestor)->post(route('alocacoes.store'), $this->dadosAlocacao($this->gestor));
         $alocacao = Alocacao::firstOrFail();
         $this->actingAs($this->gestor)->post(route('alocacoes.checagem', $alocacao));
         $saida = $alocacao->checagemSaida()->firstOrFail();
-        $this->responderItens($saida, $this->gestor, ['odometro' => 'Vidro trincado']);
+        $this->responderItens($saida, $this->gestor);
         $this->concluir($saida, $this->gestor, 1000);
+
+        $this->actingAs($this->gestor)->post(route('alocacoes.checagem', $alocacao));
+        $retorno = $alocacao->checagemRetorno()->firstOrFail();
+        $this->responderItens($retorno, $this->gestor, ['odometro' => 'Vidro trincado']);
+        $this->concluir($retorno, $this->gestor, 1050);
+        $this->assertSame(1, Ocorrencia::count());
 
         Checagem::query()->update(['concluida_em' => now()->subMonths(7)]);
 
         $this->artisan('checagens:apagar-fotos-antigas')->assertSuccessful();
 
-        $fotoOcorrencia = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'odometro'))->firstOrFail();
-        $outra = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'lataria_frente'))->firstOrFail();
+        // Preservadas: a foto da anomalia (retorno) e a de comparação (saída) do odômetro.
+        $fotoOcorrencia = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'odometro')->where('checagem_id', $retorno->id))->firstOrFail();
+        $fotoComparacao = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'odometro')->where('checagem_id', $saida->id))->firstOrFail();
+        $outra = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'lataria_frente')->where('checagem_id', $retorno->id))->firstOrFail();
+        $this->assertNull($fotoComparacao->apagada_em, 'foto de comparação da ocorrência aberta é preservada');
 
         $this->assertNull($fotoOcorrencia->apagada_em, 'foto da ocorrência aberta é preservada');
         $this->assertNotNull($outra->apagada_em);

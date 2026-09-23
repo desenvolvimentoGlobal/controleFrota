@@ -102,18 +102,21 @@
                             <form method="POST" action="{{ route('ocorrencias.revisar', $ocorrencia) }}">@csrf @method('PATCH')
                                 <div class="mb-2">
                                     <label class="form-label gc-required">Decisão</label>
-                                    <select name="decisao" class="form-select form-select-sm" required>
+                                    <select name="decisao" class="form-select form-select-sm" required id="decisao-ocorrencia">
                                         <option value="confirmada">Confirmar: o dano é real e a responsabilidade procede</option>
                                         <option value="descartada">Descartar: dano já conhecido, sem responsável ou improcedente</option>
+                                        @if($outrasAlocacoes->isNotEmpty())
+                                            <option value="reatribuida">Reatribuir: outra alocação é a responsável (continua aberta)</option>
+                                        @endif
                                     </select>
                                 </div>
                                 @if($outrasAlocacoes->isNotEmpty())
                                     <div class="mb-2">
-                                        <label class="form-label">Reatribuir responsabilidade</label>
+                                        <label class="form-label">Nova alocação responsável <span class="text-muted small">(só para reatribuir)</span></label>
                                         <select name="alocacao_responsavel_id" class="form-select form-select-sm">
-                                            <option value="">Manter</option>
+                                            <option value="">—</option>
                                             @foreach($outrasAlocacoes as $a)
-                                                <option value="{{ $a->id }}" @selected($a->id === $ocorrencia->alocacao_responsavel_id)>#{{ $a->id }} {{ $a->motorista->nome }} · {{ $a->retorno_real?->format('d/m H:i') }}</option>
+                                                <option value="{{ $a->id }}">#{{ $a->id }} {{ $a->motorista->nome }} · {{ $a->retorno_real?->format('d/m H:i') }}</option>
                                             @endforeach
                                         </select>
                                     </div>

@@ -148,7 +148,8 @@ class ManutencaoTest extends TestCase
 
         $this->actingAs($this->gestor)->post(route('manutencoes.store'), $this->dados(['bloquear_veiculo' => 1]));
         $m = Manutencao::firstOrFail();
-        $this->assertFalse($m->bloqueou_veiculo, 'em uso não é bloqueado na abertura');
+        $this->assertTrue($m->bloqueou_veiculo, 'o pedido de bloqueio fica registrado para o retorno');
+        $this->assertSame(SituacaoVeiculo::EmUso, $this->veiculo->fresh()->situacao, 'mas não tira o carro de quem está com ele');
         $this->actingAs($this->gestor)->patch(route('manutencoes.iniciar', $m))->assertSessionHas('erro');
 
         $this->actingAs($this->admin);

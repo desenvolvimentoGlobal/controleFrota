@@ -29,7 +29,7 @@ Route::middleware('guest')->group(function (): void {
 });
 
 // ─── Autenticados ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'trocar-senha'])->group(function (): void {
+Route::middleware(['auth', 'ativo', 'trocar-senha'])->group(function (): void {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
     Route::get('/senha', [SenhaController::class, 'edit'])->name('senha.editar');
@@ -62,6 +62,7 @@ Route::middleware(['auth', 'trocar-senha'])->group(function (): void {
     Route::patch('alocacoes/{alocacao}/aprovar', [AlocacaoController::class, 'aprovar'])->name('alocacoes.aprovar');
     Route::patch('alocacoes/{alocacao}/recusar', [AlocacaoController::class, 'recusar'])->name('alocacoes.recusar');
     Route::patch('alocacoes/{alocacao}/cancelar', [AlocacaoController::class, 'cancelar'])->name('alocacoes.cancelar');
+    Route::patch('alocacoes/{alocacao}/encerrar', [AlocacaoController::class, 'encerrar'])->name('alocacoes.encerrar');
     Route::post('alocacoes/{alocacao}/checagem', [ChecagemController::class, 'iniciar'])->name('alocacoes.checagem');
 
     Route::get('checagens/foto/{foto}', [ChecagemController::class, 'foto'])->name('checagens.foto');

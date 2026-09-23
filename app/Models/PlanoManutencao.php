@@ -31,7 +31,7 @@ class PlanoManutencao extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function manutencoes(): HasMany

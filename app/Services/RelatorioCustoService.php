@@ -218,7 +218,7 @@ class RelatorioCustoService
     /**
      * @param  Collection<int, Manutencao>  $manutencoes
      * @param  array<string, mixed>  $f
-     * @return array{rotulos: array<int, string>, valores: array<int, float>}
+     * @return array{rotulos: array<int, string>, valores: array<int, float>, truncado: bool}
      */
     private function serieMensal(Collection $manutencoes, array $f): array
     {
@@ -227,15 +227,21 @@ class RelatorioCustoService
 
         $rotulos = [];
         $valores = [];
-        $mes = $f['de']->startOfMonth();
-        $limite = 36; // período muito longo não vira gráfico ilegível
-        while ($mes->lte($f['ate']) && $limite-- > 0) {
+        // Período longo: o gráfico mostra os ÚLTIMOS 36 meses (o total e as
+        // tabelas continuam cobrindo tudo) e a tela avisa o corte.
+        $maximo = 36;
+        $primeiro = $f['de']->startOfMonth();
+        $ultimo = $f['ate']->startOfMonth();
+        $truncado = $primeiro->diffInMonths($ultimo) + 1 > $maximo;
+        $mes = $truncado ? $ultimo->subMonths($maximo - 1) : $primeiro;
+
+        while ($mes->lte($ultimo)) {
             $rotulos[] = $mes->translatedFormat('M/y');
             $valores[] = round($porMes[$mes->format('Y-m')] ?? 0, 2);
             $mes = $mes->addMonth();
         }
 
-        return ['rotulos' => $rotulos, 'valores' => $valores];
+        return ['rotulos' => $rotulos, 'valores' => $valores, 'truncado' => $truncado];
     }
 
     /**

@@ -49,8 +49,19 @@ class ChecagemService
             throw new \DomainException('Só o motorista da alocação faz a checagem.');
         }
 
+        if ($tipo === TipoChecagem::Saida) {
+            $this->garantirVeiculoLiberadoParaSair($alocacao);
+        }
+
         $existente = $alocacao->checagens()->where('tipo', $tipo->value)->first();
         if ($existente) {
+            // O rascunho pode ter sido aberto antes de outra checagem do
+            // veículo ser concluída: a comparação é sempre com a mais recente.
+            $ultima = $this->ultimaChecagemConcluida($alocacao->veiculo_id, $existente->id);
+            if (! $existente->concluida() && $existente->checagem_anterior_id !== $ultima?->id) {
+                $existente->update(['checagem_anterior_id' => $ultima?->id]);
+            }
+
             return $existente;
         }
 
@@ -75,34 +86,46 @@ class ChecagemService
         });
     }
 
-    /** Foto + resposta de um item. Substitui a foto anterior do mesmo item no rascunho. */
-    public function registrarItem(Checagem $checagem, ChecagemItem $item, UploadedFile $foto, SituacaoItemChecagem $situacao, ?string $observacao, Usuario $quem): ChecagemItem
+    /**
+     * Foto + resposta de um item. A foto nova substitui a anterior do mesmo
+     * item no rascunho; sem foto nova, só a resposta muda (exige que o item
+     * já tenha foto).
+     */
+    public function registrarItem(Checagem $checagem, ChecagemItem $item, ?UploadedFile $foto, SituacaoItemChecagem $situacao, ?string $observacao, Usuario $quem): ChecagemItem
     {
         $this->garantirRascunho($checagem, $quem);
 
+        if ($item->checagem_id !== $checagem->id) {
+            throw new \DomainException('Item de outra checagem.');
+        }
         if ($situacao === SituacaoItemChecagem::Anomalia && blank($observacao)) {
             throw new \DomainException('Descreva a anomalia encontrada.');
         }
+        if ($foto === null && ! $item->fotos()->exists()) {
+            throw new \DomainException('Tire a foto do item antes de responder.');
+        }
 
         return DB::transaction(function () use ($checagem, $item, $foto, $situacao, $observacao): ChecagemItem {
-            foreach ($item->fotos as $antiga) {
-                Storage::disk(self::DISCO)->delete($antiga->caminho);
-                $antiga->delete();
+            if ($foto !== null) {
+                foreach ($item->fotos as $antiga) {
+                    Storage::disk(self::DISCO)->delete($antiga->caminho);
+                    $antiga->delete();
+                }
+
+                $caminho = $foto->storeAs(
+                    "checagens/{$checagem->id}",
+                    $item->item.'-'.Str::uuid().'.'.($foto->extension() ?: 'jpg'),
+                    self::DISCO,
+                );
+
+                $item->fotos()->create([
+                    'caminho' => $caminho,
+                    'nome_original' => mb_substr((string) $foto->getClientOriginalName(), 0, 255),
+                    'mime' => $foto->getMimeType(),
+                    'tamanho' => $foto->getSize(),
+                    'enviada_por_id' => auth()->id(),
+                ]);
             }
-
-            $caminho = $foto->storeAs(
-                "checagens/{$checagem->id}",
-                $item->item.'-'.Str::uuid().'.'.($foto->extension() ?: 'jpg'),
-                self::DISCO,
-            );
-
-            $item->fotos()->create([
-                'caminho' => $caminho,
-                'nome_original' => mb_substr((string) $foto->getClientOriginalName(), 0, 255),
-                'mime' => $foto->getMimeType(),
-                'tamanho' => $foto->getSize(),
-                'enviada_por_id' => auth()->id(),
-            ]);
 
             $item->update(['situacao' => $situacao->value, 'observacao' => $observacao ? mb_substr($observacao, 0, 500) : null]);
 
@@ -118,6 +141,14 @@ class ChecagemService
     public function concluir(Checagem $checagem, array $dados, Usuario $quem): Checagem
     {
         $this->garantirRascunho($checagem, $quem);
+
+        // A referência de comparação (e o responsável presumido) é a última
+        // checagem concluída do veículo NO MOMENTO da conclusão.
+        $ultima = $this->ultimaChecagemConcluida($checagem->veiculo_id, $checagem->id);
+        if ($checagem->checagem_anterior_id !== $ultima?->id) {
+            $checagem->update(['checagem_anterior_id' => $ultima?->id]);
+        }
+
         $checagem->load(['itens.fotos', 'alocacao.veiculo', 'anterior.itens.fotoAtual', 'anterior.alocacao']);
 
         if ($checagem->itensPendentes() > 0) {
@@ -126,6 +157,12 @@ class ChecagemService
 
         $alocacao = $checagem->alocacao;
         $veiculo = $alocacao->veiculo;
+
+        // O veículo pode ter ido para a oficina entre abrir e concluir o rascunho.
+        if ($checagem->tipo === TipoChecagem::Saida) {
+            $this->garantirVeiculoLiberadoParaSair($alocacao);
+        }
+
         $km = (int) $dados['km_informado'];
         $estado = CondicaoVeiculo::from($dados['estado_geral']);
 
@@ -135,6 +172,13 @@ class ChecagemService
         }
 
         return DB::transaction(function () use ($checagem, $alocacao, $veiculo, $km, $estado, $dados, $quem): Checagem {
+            // Duplo toque em "Concluir" no celular: a segunda requisição espera
+            // a primeira e encontra a checagem já concluída.
+            $travada = Checagem::whereKey($checagem->id)->lockForUpdate()->firstOrFail();
+            if ($travada->concluida()) {
+                throw new \DomainException('Esta checagem já foi concluída.');
+            }
+
             $checagem->update([
                 'km_informado' => $km,
                 'nivel_combustivel' => $dados['nivel_combustivel'],
@@ -161,7 +205,11 @@ class ChecagemService
                     'km_retorno' => $km,
                     'estado_retorno' => $estado->value,
                 ]);
-                $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::Disponivel, 'checagem', $origemId, "Retorno da alocação #{$alocacao->id}");
+                // Volta a reservado se já houver outra alocação saindo hoje.
+                if ($veiculo->situacao === SituacaoVeiculo::EmUso) {
+                    $destino = $this->alocacoes->situacaoLivre($veiculo, $alocacao->id);
+                    $this->veiculos->mudarSituacao($veiculo, $destino, 'checagem', $origemId, "Retorno da alocação #{$alocacao->id}");
+                }
             }
 
             $this->veiculos->atualizarKm($veiculo, $km, 'checagem', $origemId, "Checagem de {$checagem->tipo->rotulo()}");
@@ -209,8 +257,16 @@ class ChecagemService
     private function abrirOcorrencias(Checagem $checagem, Usuario $quem): void
     {
         $anterior = $checagem->anterior;
-        $itensAnteriores = $anterior?->itens->keyBy('item') ?? collect();
-        $responsavelAlocacao = $anterior?->alocacao;
+
+        // Primeira checagem do veículo: é a referência inicial e não gera
+        // ocorrência (docs/PLANEJAMENTO.md 3.3). As anomalias ficam
+        // registradas no item, com foto e descrição.
+        if ($anterior === null) {
+            return;
+        }
+
+        $itensAnteriores = $anterior->itens->keyBy('item');
+        $responsavelAlocacao = $anterior->alocacao;
 
         $abertas = [];
 
@@ -246,6 +302,37 @@ class ChecagemService
         }
     }
 
+    /**
+     * Só sai veículo disponível ou reservado (para esta alocação) e sem
+     * sistema crítico. Em uso aqui significa que outra pessoa ainda não
+     * devolveu — sair agora poria o carro "em uso" duas vezes.
+     */
+    private function garantirVeiculoLiberadoParaSair(Alocacao $alocacao): void
+    {
+        $veiculo = $alocacao->veiculo()->with('condicoes')->firstOrFail();
+
+        if (! in_array($veiculo->situacao, [SituacaoVeiculo::Disponivel, SituacaoVeiculo::Reservado], true)) {
+            $motivo = $veiculo->situacao === SituacaoVeiculo::EmUso
+                ? 'O veículo ainda não foi devolvido pela alocação anterior.'
+                : "O veículo está {$veiculo->situacao->rotulo()}.";
+
+            throw new \DomainException("{$motivo} Não é possível fazer a checagem de saída agora.");
+        }
+
+        if ($veiculo->temCondicaoCritica()) {
+            throw new \DomainException('O veículo tem sistema mecânico em estado crítico e não pode sair.');
+        }
+
+        // Janela: o conflito de agenda foi validado para o período pedido.
+        // Sair dias antes (ou depois do retorno previsto) usaria o carro fora dele.
+        if (now()->lt($alocacao->saida_prevista->copy()->startOfDay())) {
+            throw new \DomainException('A saída está prevista para '.$alocacao->saida_prevista->format('d/m/Y').'. A checagem de saída só pode ser feita a partir desse dia.');
+        }
+        if (now()->gte($alocacao->retorno_previsto)) {
+            throw new \DomainException('O período desta alocação já terminou. Faça uma nova solicitação.');
+        }
+    }
+
     private function garantirRascunho(Checagem $checagem, Usuario $quem): void
     {
         if ($checagem->concluida()) {
@@ -253,6 +340,15 @@ class ChecagemService
         }
         if ($checagem->motorista_id !== $quem->id) {
             throw new \DomainException('Só o motorista da alocação faz a checagem.');
+        }
+
+        // A alocação pode ter sido cancelada/concluída depois de o rascunho ser
+        // aberto: concluí-lo agora ressuscitaria a alocação.
+        $esperada = $checagem->tipo === TipoChecagem::Saida ? SituacaoAlocacao::Aprovada : SituacaoAlocacao::EmUso;
+        // value() do Eloquent aplica o cast: volta o enum, não a string.
+        $situacaoAtual = Alocacao::whereKey($checagem->alocacao_id)->value('situacao');
+        if ($situacaoAtual !== $esperada) {
+            throw new \DomainException('Esta alocação não está mais aguardando a checagem de '.mb_strtolower($checagem->tipo->rotulo()).'.');
         }
     }
 }

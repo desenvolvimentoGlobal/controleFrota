@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\ExigirTrocaDeSenha;
+use App\Http\Middleware\GarantirUsuarioAtivo;
 use App\Http\Middleware\VerificarPerfil;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'perfil' => VerificarPerfil::class,
             'trocar-senha' => ExigirTrocaDeSenha::class,
+            'ativo' => GarantirUsuarioAtivo::class,
         ]);
 
         // Atrás do Traefik (produção Docker) o TLS termina no proxy. Seguro

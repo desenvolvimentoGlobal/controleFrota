@@ -100,12 +100,18 @@ class ManutencaoService
             $origem = $ocorrencia ? " a partir da ocorrência #{$ocorrencia->id}" : ($manutencao->plano_manutencao_id ? ' pelo plano preventivo' : '');
             $this->movimentar($manutencao, 'abertura', "Manutenção {$manutencao->tipo->rotulo()} aberta{$origem}.", null, null, $quem);
 
-            // Bloqueio imediato: veículo com defeito não deve ser alocado
-            // enquanto espera a oficina. Em uso, ele termina a alocação antes.
-            if ($bloquear && in_array($veiculo->situacao, [SituacaoVeiculo::Disponivel, SituacaoVeiculo::Reservado], true)) {
-                $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::Indisponivel, 'manutencao', $manutencao->id, "Bloqueado pela manutenção #{$manutencao->id}");
+            // Bloqueio: veículo com defeito não deve ser alocado enquanto
+            // espera a oficina. Se estiver na rua, o bloqueio fica registrado
+            // e é aplicado no retorno (ChecagemService → situacaoLivre).
+            if ($bloquear) {
                 $manutencao->update(['bloqueou_veiculo' => true]);
-                $this->movimentar($manutencao, 'situacao', 'Veículo marcado como indisponível até a conclusão.', null, null, $quem);
+
+                if (in_array($veiculo->situacao, [SituacaoVeiculo::Disponivel, SituacaoVeiculo::Reservado], true)) {
+                    $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::Indisponivel, 'manutencao', $manutencao->id, "Bloqueado pela manutenção #{$manutencao->id}");
+                    $this->movimentar($manutencao, 'situacao', 'Veículo marcado como indisponível até a conclusão.', null, null, $quem);
+                } elseif ($veiculo->situacao === SituacaoVeiculo::EmUso) {
+                    $this->movimentar($manutencao, 'situacao', 'Veículo em uso: ficará indisponível assim que for devolvido.', null, null, $quem);
+                }
             }
 
             return $manutencao;
@@ -167,14 +173,22 @@ class ManutencaoService
         }
 
         $veiculo = $manutencao->veiculo;
+        if ($veiculo->situacao === SituacaoVeiculo::Baixado) {
+            throw new \DomainException('O veículo foi baixado. Cancele a manutenção ou reative o veículo antes.');
+        }
         if (in_array($veiculo->situacao, [SituacaoVeiculo::EmUso, SituacaoVeiculo::Reservado], true)) {
             throw new \DomainException("O veículo está {$veiculo->situacao->rotulo()}. Conclua ou cancele a alocação antes de enviá-lo à manutenção.");
+        }
+        // Aprovada para hoje que a rotina de 15 min ainda não reservou.
+        if (app(AlocacaoService::class)->situacaoLivre($veiculo, null, $manutencao->id) === SituacaoVeiculo::Reservado) {
+            throw new \DomainException('Há alocação aprovada saindo hoje com este veículo. Cancele-a ou aguarde o retorno antes de enviá-lo à manutenção.');
         }
 
         DB::transaction(function () use ($manutencao, $veiculo, $quem): void {
             $manutencao->update([
                 'situacao' => SituacaoManutencao::EmPrestacao->value,
                 'inicio_prestacao_em' => now(),
+                'situacao_antes_prestacao' => $veiculo->situacao->value,
             ]);
 
             $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::EmManutencao, 'manutencao', $manutencao->id, "Manutenção #{$manutencao->id}: {$manutencao->nome}");
@@ -352,11 +366,18 @@ class ManutencaoService
         $outrasBloqueando = Manutencao::where('veiculo_id', $veiculo->id)->whereKeyNot($manutencao->id)
             ->abertas()->where('bloqueou_veiculo', true)->exists();
 
+        // Livre = indisponível (outra manutenção bloqueando), reservado
+        // (alocação aprovada saindo hoje) ou disponível.
+        $livre = app(AlocacaoService::class)->situacaoLivre($veiculo, null, $manutencao->id);
+
+        // Estava indisponível por decisão do gestor antes da oficina: volta assim.
+        $indisponivelManual = $manutencao->situacao_antes_prestacao === SituacaoVeiculo::Indisponivel->value && ! $manutencao->bloqueou_veiculo;
+
         if ($veiculo->situacao === SituacaoVeiculo::EmManutencao && ! $outrasEmPrestacao) {
-            $destino = $outrasBloqueando ? SituacaoVeiculo::Indisponivel : SituacaoVeiculo::Disponivel;
+            $destino = ($outrasBloqueando || $indisponivelManual) ? SituacaoVeiculo::Indisponivel : $livre;
             $this->veiculos->mudarSituacao($veiculo, $destino, 'manutencao', $manutencao->id, $motivo);
         } elseif ($veiculo->situacao === SituacaoVeiculo::Indisponivel && $manutencao->bloqueou_veiculo && ! $outrasBloqueando && ! $outrasEmPrestacao) {
-            $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::Disponivel, 'manutencao', $manutencao->id, $motivo);
+            $this->veiculos->mudarSituacao($veiculo, $livre, 'manutencao', $manutencao->id, $motivo);
         }
     }
 

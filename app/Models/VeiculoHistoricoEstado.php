@@ -20,12 +20,12 @@ class VeiculoHistoricoEstado extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function usuario(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'usuario_id');
+        return $this->belongsTo(Usuario::class, 'usuario_id')->withTrashed();
     }
 
     public function rotuloCampo(): string

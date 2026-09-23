@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # Controle de Frota — imagem Docker (multi-stage)
 #
 # Stages:
@@ -103,5 +103,12 @@ COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # Estáticos do repositório (css/js/imagens versionados em public/).
 COPY public ./public
+
+# Fotos de veículos e usuários (disco `public` do Laravel): o volume
+# storage-public é montado em storage/app/public e este link o expõe em
+# /storage, como o `php artisan storage:link` faz no app.
+RUN mkdir -p /var/www/html/storage/app/public \
+    && rm -rf /var/www/html/public/storage \
+    && ln -s /var/www/html/storage/app/public /var/www/html/public/storage
 
 EXPOSE 80

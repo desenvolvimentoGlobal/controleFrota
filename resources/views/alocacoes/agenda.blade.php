@@ -32,7 +32,8 @@
                                 <div><span class="badge badge-situacao {{ $v->situacao->badge() }}">{{ $v->situacao->rotulo() }}</span></div>
                             </td>
                             @foreach($dias as $dia)
-                                @php($doDia = ($alocacoes[$v->id] ?? collect())->filter(fn ($a) => $a->saida_prevista->lte($dia->copy()->endOfDay()) && $a->retorno_previsto->gte($dia)))
+                                {{-- Em uso atrasada ocupa até agora (o carro ainda não voltou). --}}
+                                @php($doDia = ($alocacoes[$v->id] ?? collect())->filter(fn ($a) => $a->saida_prevista->lte($dia->copy()->endOfDay()) && ($a->atrasada() ? now() : $a->retorno_previsto)->gte($dia)))
                                 <td class="small p-1 align-top {{ $dia->isToday() ? 'bg-soft-teal' : '' }}">
                                     @foreach($doDia as $a)
                                         <a href="{{ route('alocacoes.show', $a) }}" class="d-block rounded px-1 py-0 mb-1 text-decoration-none text-truncate

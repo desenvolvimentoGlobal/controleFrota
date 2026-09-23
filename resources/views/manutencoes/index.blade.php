@@ -35,7 +35,7 @@
     <div class="card">
         <div class="card-header bg-white d-flex justify-content-between small">
             <span>{{ (int) $totais->quantidade }} manutenção(ões) no filtro</span>
-            <span>Custo (final ou previsto): <strong class="gc-valor-sensivel">{{ \App\Support\Numero::moeda($totais->custo ?? 0) }}</strong></span>
+            <span>Custo (final ou previsto, sem canceladas): <strong class="gc-valor-sensivel">{{ \App\Support\Numero::moeda($totais->custo ?? 0) }}</strong></span>
         </div>
         <div class="table-responsive">
             <table class="table table-gc mb-0 align-middle">

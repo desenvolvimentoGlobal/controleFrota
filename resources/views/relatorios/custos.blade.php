@@ -84,7 +84,8 @@
     <div class="row g-3">
         <div class="col-lg-5">
             <div class="card h-100">
-                <div class="card-header bg-white"><strong>Custo por mês</strong> <span class="text-muted small">{{ $periodoLabel }}</span></div>
+                <div class="card-header bg-white"><strong>Custo por mês</strong>
+                    <span class="text-muted small">{{ $mensal['truncado'] ? 'últimos 36 meses do período' : $periodoLabel }}</span></div>
                 <div class="card-body"><canvas id="grafico-mensal" height="220"></canvas></div>
             </div>
         </div>

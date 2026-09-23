@@ -56,14 +56,19 @@ class AlocacaoController extends Controller
     /** Agenda: próximos 7 dias por veículo. */
     public function agenda(Request $request): View
     {
-        $inicio = $request->date('inicio')?->startOfDay() ?? now()->startOfDay();
+        try {
+            $inicio = $request->date('inicio')?->startOfDay() ?? now()->startOfDay();
+        } catch (\Throwable) {
+            $inicio = now()->startOfDay(); // ?inicio= inválido na URL
+        }
         $fim = $inicio->copy()->addDays(6)->endOfDay();
 
         $veiculos = Veiculo::ativos()->orderBy('nome')->get(['id', 'nome', 'placa', 'situacao']);
+        // Em uso com retorno atrasado continua ocupando o carro até voltar.
         $alocacoes = Alocacao::with(['motorista:id,nome'])
             ->abertas()
             ->where('saida_prevista', '<=', $fim)
-            ->where('retorno_previsto', '>=', $inicio)
+            ->where(fn ($q) => $q->where('retorno_previsto', '>=', $inicio)->orWhere('situacao', SituacaoAlocacao::EmUso->value))
             ->get()
             ->groupBy('veiculo_id');
 
@@ -124,7 +129,7 @@ class AlocacaoController extends Controller
 
         $alocacao->load([
             'veiculo', 'motorista', 'solicitante', 'aprovador',
-            'checagens.itens.fotoAtual', 'checagens.itens.ocorrencia',
+            'checagens.itens.fotoAtual', 'checagens.itens.ocorrencia', 'motorista.gestor',
             'ocorrenciasComoResponsavel.apontadaPor',
         ]);
 
@@ -156,6 +161,23 @@ class AlocacaoController extends Controller
         }
 
         return back()->with('sucesso', 'Alocação recusada.');
+    }
+
+    public function encerrar(Alocacao $alocacao, Request $request): RedirectResponse
+    {
+        $this->authorize('encerrar', $alocacao);
+        $dados = $request->validate([
+            'km_retorno' => ['required', 'integer', 'min:0', 'max:9999999'],
+            'motivo' => ['required', 'string', 'max:500'],
+        ], [], ['km_retorno' => 'quilometragem', 'motivo' => 'motivo']);
+
+        try {
+            $this->servico->encerrarPeloAdmin($alocacao, $request->user(), (int) $dados['km_retorno'], $dados['motivo']);
+        } catch (\DomainException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        return back()->with('sucesso', 'Alocação encerrada sem checagem de retorno.');
     }
 
     public function cancelar(Alocacao $alocacao, Request $request): RedirectResponse

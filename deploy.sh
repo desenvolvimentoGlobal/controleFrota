@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 # =============================================================================
 # deploy.sh — atualização da aplicação em PRODUÇÃO (git pull + build + migrate).
 # TEMPLATE: troque frota pelo nome do projeto (mesmo do compose.yaml).

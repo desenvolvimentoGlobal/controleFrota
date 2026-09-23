@@ -54,7 +54,10 @@ class ManutencaoController extends Controller
             ->when($request->input('ate'), fn ($q, $ate) => $q->whereDate('created_at', '<=', $ate))
             ->when($busca !== '', fn ($q) => $q->where(fn ($s) => $s->where('nome', 'like', "%{$busca}%")->orWhere('descricao_problema', 'like', "%{$busca}%")));
 
-        $totais = (clone $filtradas)->selectRaw('count(*) as quantidade, sum(coalesce(preco_final, preco_previsto, 0)) as custo')->first();
+        // Cancelada não custa nada: fica fora da soma (mas conta na quantidade).
+        $totais = (clone $filtradas)->selectRaw(
+            "count(*) as quantidade, sum(case when situacao = 'cancelada' then 0 else coalesce(preco_final, preco_previsto, 0) end) as custo"
+        )->first();
 
         $manutencoes = $filtradas->with(['veiculo:id,nome,placa', 'fornecedor:id,razao_social,nome_fantasia'])
             ->orderByRaw("case situacao when 'em_prestacao' then 0 when 'em_espera' then 1 else 2 end")

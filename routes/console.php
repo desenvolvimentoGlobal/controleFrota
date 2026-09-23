@@ -6,10 +6,12 @@ use Illuminate\Support\Facades\Schedule;
 
 // Agendamentos do Controle de Frota. Dependem de `php artisan schedule:work`
 // (serviço `worker` no Docker) ou de um cron chamando schedule:run.
-// O fuso é obrigatório: config('app.timezone') é UTC.
+// O fuso da aplicação é America/Sao_Paulo (config/app.php); o timezone
+// explícito abaixo continua como garantia caso alguém mude o padrão.
 
-// Retorno atrasado: motorista e gestor são avisados uma vez por alocação.
-Schedule::command('alocacoes:marcar-atrasadas')
+// Alocações: reserva o veículo no dia da saída, expira aprovadas que não
+// saíram e avisa retornos atrasados (uma vez por alocação).
+Schedule::command('alocacoes:sincronizar')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
@@ -20,8 +22,7 @@ Schedule::command('checagens:apagar-fotos-antigas')
     ->withoutOverlapping();
 
 // Planos preventivos: abre a manutenção quando o veículo chega perto do km
-// ou da data (antecedência em config/frota.php). Depois da noite, antes do
-// expediente, para o gestor já ver de manhã.
+// ou da data (antecedência em config/frota.php).
 Schedule::command('manutencoes:verificar-planos')
     ->dailyAt('06:30')
     ->timezone('America/Sao_Paulo')

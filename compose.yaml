@@ -1,8 +1,8 @@
-﻿# =============================================================================
+# =============================================================================
 # TEMPLATE — Compose BASE (topologia compartilhada da aplicação).
 # Extraído do "gestao", PROVADO em produção (Lightsail + Docker + Traefik v3.6).
 #
-# Serviços: web (Nginx) · app (PHP-FPM) · worker (queue:work) · db (MySQL 8.0)
+# Serviços: web (Nginx) · app (PHP-FPM) · worker (schedule:work) · db (MySQL 8.0)
 #
 # COMO USAR num projeto novo — procure por  frota  e troque TUDO por um
 # nome ÚNICO no servidor (ex.: financeiro, rh, portal). Ver checklist no README.
@@ -73,21 +73,24 @@ services:
         required: false
     volumes:
       - storage-private:/var/www/html/storage/app/private
+      - storage-public:/var/www/html/storage/app/public
     networks:
       - internal
 
   # ---------------------------------------------------------------------------
-  # worker — mesma imagem do app, processando a fila (driver database)
+  # worker — mesma imagem do app, rodando o AGENDADOR do Laravel.
   # ---------------------------------------------------------------------------
-  # Primeiro candidato a cortar memória se o servidor apertar: fila database,
-  # sem picos. Meça com `docker stats` antes de mexer.
+  # O Controle de Frota não usa fila; o que ele precisa em segundo plano são
+  # os comandos de routes/console.php (retorno atrasado a cada 15 min,
+  # retenção de fotos 02:00, planos preventivos 06:30, vencimentos 07:00).
+  # O nome `worker` fica para o deploy.sh (que lê os logs dele).
   worker:
     build: *app-build
     image: frota-app:local
     restart: unless-stopped
-    mem_limit: 768m
+    mem_limit: 512m
     user: "www-data"
-    command: php artisan queue:work --tries=3 --timeout=90 --sleep=3 --max-time=3600
+    command: php artisan schedule:work
     depends_on:
       db:
         condition: service_healthy
@@ -97,6 +100,7 @@ services:
         required: false
     volumes:
       - storage-private:/var/www/html/storage/app/private
+      - storage-public:/var/www/html/storage/app/public
     networks:
       - internal
 
@@ -113,6 +117,10 @@ services:
     mem_limit: 512m
     depends_on:
       - app
+    # O nginx serve /storage/... direto do disco: sem o MESMO volume aqui, as
+    # fotos de veículos e usuários salvas pelo app dariam 404.
+    volumes:
+      - storage-public:/var/www/html/storage/app/public:ro
     # SEM "ports" em produção: quem publica 80/443 no host é o Traefik. O único
     # caminho até este container é a rede `edge` — premissa que sustenta o
     # trustProxies('*') em bootstrap/app.php. NÃO republique portas aqui (para
@@ -183,7 +191,8 @@ services:
 
 volumes:
   db-data:          # dados do MySQL (/var/lib/mysql) — PERSISTENTE
-  storage-private:  # uploads privados (anexos) — PERSISTENTE
+  storage-private:  # fotos de checagem e anexos de manutenção — PERSISTENTE
+  storage-public:   # fotos de veículos e usuários (servidas pelo nginx) — PERSISTENTE
 
 networks:
   # Rede privada do projeto: app, worker, db e web. O db vive SÓ aqui — nunca

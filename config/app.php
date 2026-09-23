@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Brasília, não UTC: os usuários digitam saída/retorno previstos em hora
+    // local (datetime-local) e o sistema compara com now(). Em UTC, atraso e
+    // "hoje" ficavam deslocados em 3 horas.
+    'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
     |--------------------------------------------------------------------------

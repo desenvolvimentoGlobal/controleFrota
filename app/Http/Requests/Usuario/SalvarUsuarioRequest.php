@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Usuario;
 
+use App\Models\Perfil;
 use App\Models\Usuario;
 use App\Rules\Cpf;
 use Illuminate\Foundation\Http\FormRequest;
@@ -45,17 +46,31 @@ class SalvarUsuarioRequest extends FormRequest
     {
         /** @var Usuario|null $usuario */
         $usuario = $this->route('usuario');
+        /** @var Usuario $atual */
+        $atual = $this->user();
+
+        // Quem não é admin não promove ninguém a admin e só pendura a pessoa
+        // em alguém da própria cadeia. O formulário já esconde essas opções,
+        // mas a regra vale no servidor: um POST montado à mão não passa.
+        $perfisPermitidos = Perfil::query()
+            ->when(! $atual->ehAdmin(), fn ($q) => $q->where('codigo', '!=', 'admin'))
+            ->pluck('id')->all();
+        $gestoresPermitidos = $atual->ehAdmin() ? null : [$atual->id, ...$atual->idsDaEquipe()];
 
         return [
             'nome' => ['required', 'string', 'max:255'],
             'login' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9._-]+$/', Rule::unique('usuarios', 'login')->ignore($usuario)],
             'email' => ['required', 'email', 'max:255', Rule::unique('usuarios', 'email')->ignore($usuario)],
             'cpf' => ['required', 'digits:11', new Cpf, Rule::unique('usuarios', 'cpf')->ignore($usuario)],
-            'perfil_id' => ['required', 'exists:perfis,id'],
+            'perfil_id' => ['required', Rule::in($perfisPermitidos)],
             'senha' => [$usuario ? 'nullable' : 'required', 'string', Password::min(8)->letters()->numbers()],
             'setor_id' => ['nullable', 'exists:setores,id'],
             'cargo_id' => ['nullable', 'exists:cargos,id'],
-            'gestor_id' => ['nullable', 'exists:usuarios,id', $usuario ? Rule::notIn([$usuario->id]) : 'nullable'],
+            'gestor_id' => array_values(array_filter([
+                'nullable', 'exists:usuarios,id',
+                $usuario ? Rule::notIn([$usuario->id, ...$usuario->idsDaEquipe()]) : null,
+                $gestoresPermitidos !== null ? Rule::in($gestoresPermitidos) : null,
+            ])),
 
             'telefone' => ['nullable', 'digits_between:10,11'],
             'celular' => ['nullable', 'digits_between:10,11'],
@@ -97,7 +112,9 @@ class SalvarUsuarioRequest extends FormRequest
     {
         return [
             'login.regex' => 'O login só pode ter letras minúsculas, números, ponto, hífen e sublinhado.',
-            'gestor_id.not_in' => 'O usuário não pode ser gestor de si mesmo.',
+            'gestor_id.not_in' => 'O gestor não pode ser o próprio usuário nem alguém da equipe dele (criaria um ciclo).',
+            'gestor_id.in' => 'Escolha como gestor você ou alguém da sua equipe.',
+            'perfil_id.in' => 'Você não pode atribuir este perfil.',
         ];
     }
 

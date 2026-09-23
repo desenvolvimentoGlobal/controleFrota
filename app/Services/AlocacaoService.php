@@ -7,10 +7,12 @@ namespace App\Services;
 use App\Enums\SituacaoAlocacao;
 use App\Enums\SituacaoVeiculo;
 use App\Models\Alocacao;
+use App\Models\Manutencao;
 use App\Models\Usuario;
 use App\Models\Veiculo;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Ciclo da alocação (docs/PLANEJAMENTO.md 3.2):
@@ -121,6 +123,7 @@ class AlocacaoService
             $eraAprovada = $alocacao->situacao === SituacaoAlocacao::Aprovada;
 
             $alocacao->update(['situacao' => SituacaoAlocacao::Cancelada->value, 'motivo_recusa' => $motivo]);
+            $this->descartarRascunhos($alocacao);
 
             if ($eraAprovada) {
                 $this->liberarVeiculo($alocacao, 'Alocação cancelada');
@@ -133,10 +136,98 @@ class AlocacaoService
             route('alocacoes.show', $alocacao, false));
     }
 
-    /** Scheduler: marca e avisa alocações em uso cujo retorno previsto passou. */
+    /**
+     * Saída de emergência do admin: encerra uma alocação EM USO sem a
+     * checagem de retorno (motorista desligado, celular perdido, acidente).
+     * Fica registrado quem encerrou, com qual km e por quê.
+     */
+    public function encerrarPeloAdmin(Alocacao $alocacao, Usuario $admin, int $km, string $motivo): void
+    {
+        if (! $admin->ehAdmin()) {
+            throw new \DomainException('Só o administrador pode encerrar uma alocação sem checagem.');
+        }
+        if ($alocacao->situacao !== SituacaoAlocacao::EmUso) {
+            throw new \DomainException('Só alocações em uso podem ser encerradas assim.');
+        }
+
+        $veiculo = $alocacao->veiculo;
+        if ($km < (int) ($alocacao->km_saida ?? $veiculo->km_atual)) {
+            throw new \DomainException("A quilometragem informada ({$km}) é menor que a da saída ({$alocacao->km_saida}).");
+        }
+
+        DB::transaction(function () use ($alocacao, $veiculo, $admin, $km, $motivo): void {
+            $alocacao->update([
+                'situacao' => SituacaoAlocacao::Concluida->value,
+                'retorno_real' => now(),
+                'km_retorno' => $km,
+                'observacoes' => trim(($alocacao->observacoes ? $alocacao->observacoes."\n" : '')."Encerrada por {$admin->nome} sem checagem de retorno: {$motivo}"),
+            ]);
+            $this->descartarRascunhos($alocacao);
+
+            $this->veiculos->atualizarKm($veiculo, $km, 'alocacao', $alocacao->id, "Encerramento sem checagem: {$motivo}");
+            if ($veiculo->fresh()->situacao === SituacaoVeiculo::EmUso) {
+                $this->veiculos->mudarSituacao($veiculo->fresh(), $this->situacaoLivre($veiculo, $alocacao->id), 'alocacao', $alocacao->id, "Encerramento sem checagem: {$motivo}");
+            }
+        });
+
+        $this->notificar->enviar(
+            $this->notificar->responsaveisPor($alocacao->motorista, $admin->id)->push($alocacao->motorista)->unique('id'),
+            'alocacao_encerrada', 'Alocação encerrada pelo administrador',
+            "{$admin->nome} encerrou a alocação do veículo {$alocacao->veiculo->nome} sem checagem de retorno: {$motivo}",
+            route('alocacoes.show', $alocacao, false));
+    }
+
+    /**
+     * Rotina de 15 em 15 minutos:
+     *  - reserva o veículo das alocações aprovadas que saem hoje (aprovadas
+     *    com antecedência não reservam na hora da aprovação);
+     *  - expira aprovadas cujo retorno previsto passou sem saída;
+     *  - marca e avisa os retornos atrasados.
+     *
+     * @return array{reservadas: int, expiradas: int, atrasadas: int}
+     */
+    public function sincronizar(): array
+    {
+        $expiradas = 0;
+        $vencidas = Alocacao::with(['veiculo', 'motorista', 'solicitante'])
+            ->where('situacao', SituacaoAlocacao::Aprovada->value)
+            ->where('retorno_previsto', '<', now())
+            ->get();
+
+        foreach ($vencidas as $alocacao) {
+            DB::transaction(function () use ($alocacao): void {
+                $alocacao->update(['situacao' => SituacaoAlocacao::Cancelada->value, 'motivo_recusa' => 'Expirada: o veículo não saiu no período previsto.']);
+                $this->descartarRascunhos($alocacao);
+                $this->liberarVeiculo($alocacao, 'Alocação expirada sem saída');
+            });
+            $this->notificar->enviar(collect([$alocacao->motorista, $alocacao->solicitante])->unique('id'), 'alocacao_expirada', 'Alocação expirada',
+                "A alocação do veículo {$alocacao->veiculo->nome} de {$alocacao->saida_prevista->format('d/m H:i')} expirou sem a checagem de saída.",
+                route('alocacoes.show', $alocacao, false));
+            $expiradas++;
+        }
+
+        $reservadas = 0;
+        $doDia = Alocacao::with('veiculo')
+            ->where('situacao', SituacaoAlocacao::Aprovada->value)
+            ->where('saida_prevista', '<=', now()->endOfDay())
+            ->where('retorno_previsto', '>', now())
+            ->get();
+
+        foreach ($doDia as $alocacao) {
+            $veiculo = $alocacao->veiculo->fresh();
+            if ($veiculo->situacao === SituacaoVeiculo::Disponivel) {
+                $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::Reservado, 'alocacao', $alocacao->id, "Alocação #{$alocacao->id} sai hoje");
+                $reservadas++;
+            }
+        }
+
+        return ['reservadas' => $reservadas, 'expiradas' => $expiradas, 'atrasadas' => $this->marcarAtrasadas()];
+    }
+
+    /** Marca e avisa alocações em uso cujo retorno previsto passou. */
     public function marcarAtrasadas(): int
     {
-        $atrasadas = Alocacao::with(['motorista', 'veiculo'])
+        $atrasadas = Alocacao::with(['motorista.gestor', 'veiculo'])
             ->where('situacao', SituacaoAlocacao::EmUso->value)
             ->whereNull('atrasada_em')
             ->where('retorno_previsto', '<', now())
@@ -174,11 +265,65 @@ class AlocacaoService
         }
     }
 
+    /**
+     * Desfaz a RESERVA feita por esta alocação. Nunca mexe em veículo em uso:
+     * cancelar uma alocação de amanhã enquanto outra pessoa está com o carro
+     * não pode marcá-lo como disponível.
+     */
     public function liberarVeiculo(Alocacao $alocacao, string $motivo): void
     {
-        $veiculo = $alocacao->veiculo;
-        if (in_array($veiculo->situacao, [SituacaoVeiculo::Reservado, SituacaoVeiculo::EmUso], true)) {
-            $this->veiculos->mudarSituacao($veiculo, SituacaoVeiculo::Disponivel, 'alocacao', $alocacao->id, $motivo);
+        $veiculo = $alocacao->veiculo->fresh();
+        if ($veiculo->situacao !== SituacaoVeiculo::Reservado) {
+            return;
+        }
+
+        $destino = $this->situacaoLivre($veiculo, $alocacao->id);
+        if ($destino !== $veiculo->situacao) {
+            $this->veiculos->mudarSituacao($veiculo, $destino, 'alocacao', $alocacao->id, $motivo);
+        }
+    }
+
+    /**
+     * Para onde o veículo vai quando fica livre (retorno, cancelamento,
+     * fim de manutenção):
+     *  - indisponível, se houver manutenção aberta pedindo bloqueio;
+     *  - reservado, se houver outra alocação aprovada saindo hoje e ainda
+     *    dentro do período (aprovadas vencidas não prendem o carro);
+     *  - disponível, caso contrário.
+     */
+    public function situacaoLivre(Veiculo $veiculo, ?int $ignorarAlocacaoId = null, ?int $ignorarManutencaoId = null): SituacaoVeiculo
+    {
+        $bloqueada = Manutencao::where('veiculo_id', $veiculo->id)
+            ->abertas()->where('bloqueou_veiculo', true)
+            ->when($ignorarManutencaoId, fn ($q) => $q->whereKeyNot($ignorarManutencaoId))
+            ->exists();
+
+        if ($bloqueada) {
+            return SituacaoVeiculo::Indisponivel;
+        }
+
+        $outraHoje = Alocacao::where('veiculo_id', $veiculo->id)
+            ->where('situacao', SituacaoAlocacao::Aprovada->value)
+            ->when($ignorarAlocacaoId, fn ($q) => $q->whereKeyNot($ignorarAlocacaoId))
+            ->where('saida_prevista', '<=', now()->endOfDay())
+            ->where('retorno_previsto', '>', now())
+            ->exists();
+
+        return $outraHoje ? SituacaoVeiculo::Reservado : SituacaoVeiculo::Disponivel;
+    }
+
+    /** Apaga rascunhos de checagem (e as fotos) de uma alocação que não vai mais sair/voltar por checagem. */
+    private function descartarRascunhos(Alocacao $alocacao): void
+    {
+        $rascunhos = $alocacao->checagens()->where('situacao', 'rascunho')->with('itens.fotos')->get();
+
+        foreach ($rascunhos as $rascunho) {
+            foreach ($rascunho->itens as $item) {
+                foreach ($item->fotos as $foto) {
+                    Storage::disk(ChecagemService::DISCO)->delete($foto->caminho);
+                }
+            }
+            $rascunho->delete(); // itens e fotos em cascata
         }
     }
 

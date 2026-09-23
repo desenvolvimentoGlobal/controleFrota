@@ -59,8 +59,16 @@ class VeiculoService
             return;
         }
 
-        if ($veiculo->situacao === SituacaoVeiculo::Baixado && $origem === 'manual' && $nova !== SituacaoVeiculo::Disponivel) {
-            throw new \DomainException('Um veículo baixado só pode voltar como disponível.');
+        if ($origem === 'manual') {
+            // Em uso, reservado e em manutenção pertencem ao fluxo de alocação
+            // e manutenção: trocar à mão deixaria alocação/manutenção órfã.
+            $doFluxo = [SituacaoVeiculo::EmUso, SituacaoVeiculo::Reservado, SituacaoVeiculo::EmManutencao];
+            if (in_array($veiculo->situacao, $doFluxo, true)) {
+                throw new \DomainException("O veículo está {$veiculo->situacao->rotulo()}. Conclua ou cancele a alocação/manutenção antes de mudar a situação à mão.");
+            }
+            if ($veiculo->situacao === SituacaoVeiculo::Baixado && $nova !== SituacaoVeiculo::Disponivel) {
+                throw new \DomainException('Um veículo baixado só pode voltar como disponível.');
+            }
         }
 
         DB::transaction(function () use ($veiculo, $nova, $origem, $origemId, $observacao): void {

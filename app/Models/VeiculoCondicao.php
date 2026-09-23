@@ -22,12 +22,12 @@ class VeiculoCondicao extends Model
 
     public function veiculo(): BelongsTo
     {
-        return $this->belongsTo(Veiculo::class, 'veiculo_id');
+        return $this->belongsTo(Veiculo::class, 'veiculo_id')->withTrashed();
     }
 
     public function atualizadoPor(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'atualizado_por_id');
+        return $this->belongsTo(Usuario::class, 'atualizado_por_id')->withTrashed();
     }
 
     public function getRotuloSistemaAttribute(): string

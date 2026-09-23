@@ -57,6 +57,9 @@
                         @can('cancelar', $alocacao)
                             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-cancelar"><i class="bi bi-slash-circle"></i> Cancelar</button>
                         @endcan
+                        @can('encerrar', $alocacao)
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modal-encerrar" title="Quando o motorista não consegue fazer a checagem de retorno"><i class="bi bi-stop-circle"></i> Encerrar sem checagem</button>
+                        @endcan
                     </div>
                 </div>
             </div>
@@ -119,6 +122,23 @@
                 <div class="modal-header"><h5 class="modal-title">Recusar alocação</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body"><label class="form-label gc-required">Motivo</label><textarea name="motivo" rows="3" maxlength="500" class="form-control" required></textarea></div>
                 <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Voltar</button><button class="btn btn-danger">Recusar</button></div>
+            </form>
+        </div></div></div>
+    @endcan
+    @can('encerrar', $alocacao)
+        <div class="modal fade" id="modal-encerrar" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ route('alocacoes.encerrar', $alocacao) }}">@csrf @method('PATCH')
+                <div class="modal-header"><h5 class="modal-title">Encerrar alocação sem checagem</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p class="small text-muted">Use só quando o motorista não puder fazer a checagem de retorno (desligamento, celular perdido, acidente). Sem as fotos, avarias deste uso não geram ocorrência automática.</p>
+                    <div class="mb-3">
+                        <label class="form-label gc-required">Km no odômetro</label>
+                        <input type="number" name="km_retorno" min="{{ $alocacao->km_saida ?? 0 }}" value="{{ $alocacao->km_saida }}" class="form-control" required>
+                    </div>
+                    <label class="form-label gc-required">Motivo</label>
+                    <textarea name="motivo" rows="3" maxlength="500" class="form-control" required></textarea>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Voltar</button><button class="btn btn-danger">Encerrar</button></div>
             </form>
         </div></div></div>
     @endcan
