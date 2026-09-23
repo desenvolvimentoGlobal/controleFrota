@@ -6,8 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\SituacaoAlocacao;
 use App\Enums\SituacaoCondicao;
+use App\Enums\SituacaoManutencao;
 use App\Enums\SituacaoVeiculo;
 use App\Models\Alocacao;
+use App\Models\Manutencao;
 use App\Models\Ocorrencia;
 use App\Models\Usuario;
 use App\Models\Veiculo;
@@ -57,6 +59,14 @@ class PainelController extends Controller
                 ->whereIn('situacao', [SituacaoAlocacao::Aprovada->value, SituacaoAlocacao::EmUso->value])->orderBy('saida_prevista')->first(),
         ];
 
-        return view('painel.index', compact('frota', 'pessoas', 'operacao'));
+        $manutencao = $usuario->can('manutencoes.ver') ? [
+            'em_espera' => Manutencao::where('situacao', SituacaoManutencao::EmEspera->value)->count(),
+            'em_prestacao' => Manutencao::where('situacao', SituacaoManutencao::EmPrestacao->value)->count(),
+            'atrasadas' => Manutencao::abertas()->whereDate('prazo', '<', today())->count(),
+            'custo_mes' => (float) Manutencao::where('situacao', SituacaoManutencao::Prestada->value)
+                ->whereBetween('concluida_em', [now()->startOfMonth(), now()->endOfMonth()])->sum('preco_final'),
+        ] : null;
+
+        return view('painel.index', compact('frota', 'pessoas', 'operacao', 'manutencao'));
     }
 }

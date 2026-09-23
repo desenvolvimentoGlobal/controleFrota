@@ -19,5 +19,16 @@ Schedule::command('checagens:apagar-fotos-antigas')
     ->timezone('America/Sao_Paulo')
     ->withoutOverlapping();
 
-// Previstos para as próximas fases:
-//   - 07:00 vencimentos (CNH, licenciamento, seguro, planos de manutenção) → fase 3
+// Planos preventivos: abre a manutenção quando o veículo chega perto do km
+// ou da data (antecedência em config/frota.php). Depois da noite, antes do
+// expediente, para o gestor já ver de manhã.
+Schedule::command('manutencoes:verificar-planos')
+    ->dailyAt('06:30')
+    ->timezone('America/Sao_Paulo')
+    ->withoutOverlapping();
+
+// Licenciamento, seguro e CNH vencendo nos próximos 30 dias.
+Schedule::command('frota:verificar-vencimentos')
+    ->dailyAt('07:00')
+    ->timezone('America/Sao_Paulo')
+    ->withoutOverlapping();

@@ -55,6 +55,16 @@ class Veiculo extends Model
         return $this->hasMany(VeiculoHistoricoEstado::class, 'veiculo_id')->latest('id');
     }
 
+    public function manutencoes(): HasMany
+    {
+        return $this->hasMany(Manutencao::class, 'veiculo_id');
+    }
+
+    public function planosManutencao(): HasMany
+    {
+        return $this->hasMany(PlanoManutencao::class, 'veiculo_id')->orderBy('nome');
+    }
+
     // ─── Scopes ────────────────────────────────────────────────────────────────
 
     public function scopeAtivos(Builder $query): Builder

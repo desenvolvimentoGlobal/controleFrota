@@ -50,7 +50,7 @@ class OcorrenciaController extends Controller
             'veiculo', 'apontadaPor', 'revisadaPor',
             'item.fotoAtual', 'item.checagem.alocacao.motorista', 'item.checagem.motorista',
             'itemAnterior.fotoAtual', 'itemAnterior.checagem.motorista',
-            'alocacaoResponsavel.motorista',
+            'alocacaoResponsavel.motorista', 'manutencao',
         ]);
 
         $outrasAlocacoes = $request->user()->can('revisar', $ocorrencia)

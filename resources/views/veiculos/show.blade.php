@@ -62,6 +62,9 @@
                     <ul class="nav nav-tabs card-header-tabs" role="tablist">
                         <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dados" type="button">Dados</button></li>
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-condicao" type="button">Condição mecânica @if($veiculo->temCondicaoCritica())<span class="badge text-bg-danger ms-1">!</span>@endif</button></li>
+                        @can('manutencoes.ver')
+                            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-manutencao" type="button">Manutenção</button></li>
+                        @endcan
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-historico" type="button">Histórico</button></li>
                     </ul>
                 </div>
@@ -155,11 +158,89 @@
                                     </tbody>
                                 </table>
                             </div>
-                            @can('frota.gerenciar')
-                                <div class="d-flex justify-content-end"><button class="btn btn-gc-primary btn-sm"><i class="bi bi-check-lg"></i> Salvar condições</button></div>
-                            @endcan
+                            <div class="d-flex justify-content-end gap-2">
+                                @can('manutencoes.gerenciar')
+                                    @if($veiculo->condicoes->contains(fn ($c) => $c->situacao->value !== 'ok'))
+                                        <a href="{{ route('manutencoes.create', ['veiculo_id' => $veiculo->id, 'sugerir' => 1]) }}" class="btn btn-outline-danger btn-sm"><i class="bi bi-wrench-adjustable"></i> Abrir manutenção dos itens com problema</a>
+                                    @endif
+                                @endcan
+                                @can('frota.gerenciar')
+                                    <button class="btn btn-gc-primary btn-sm"><i class="bi bi-check-lg"></i> Salvar condições</button>
+                                @endcan
+                            </div>
                         </form>
                     </div>
+
+                    {{-- ===== Manutenção ===== --}}
+                    @can('manutencoes.ver')
+                        <div class="tab-pane fade" id="tab-manutencao">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="text-muted text-uppercase small mb-0">Últimas manutenções</h6>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ route('manutencoes.index', ['veiculo_id' => $veiculo->id]) }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+                                    @can('manutencoes.gerenciar')
+                                        <a href="{{ route('manutencoes.create', ['veiculo_id' => $veiculo->id]) }}" class="btn btn-sm btn-gc-primary"><i class="bi bi-plus-lg"></i> Nova</a>
+                                    @endcan
+                                </div>
+                            </div>
+                            <table class="table table-sm align-middle small mb-4">
+                                <tbody>
+                                    @forelse($veiculo->manutencoes as $m)
+                                        <tr>
+                                            <td><a href="{{ route('manutencoes.show', $m) }}" class="text-decoration-none">#{{ $m->id }} {{ $m->nome }}</a><div class="text-muted">{{ $m->tipo->rotulo() }} · {{ $m->fornecedor?->nome ?? 'sem fornecedor' }}</div></td>
+                                            <td class="text-muted">{{ $m->created_at->format('d/m/Y') }}</td>
+                                            <td class="text-end gc-valor-sensivel">{{ \App\Support\Numero::moeda($m->custo()) }}</td>
+                                            <td><span class="badge badge-situacao {{ $m->situacao->badge() }}">{{ $m->situacao->rotulo() }}</span></td>
+                                        </tr>
+                                    @empty
+                                        <tr><td class="text-muted">Nenhuma manutenção registrada.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+
+                            <h6 class="text-muted text-uppercase small">Planos preventivos</h6>
+                            <p class="small text-muted mb-2">O sistema abre a manutenção preventiva sozinho quando faltam {{ number_format(config('frota.manutencao.antecedencia_km'), 0, ',', '.') }} km ou {{ config('frota.manutencao.antecedencia_dias') }} dias para o limite.</p>
+                            <table class="table table-sm align-middle small">
+                                <thead><tr><th>Plano</th><th>Intervalo</th><th>Última</th><th>Próxima</th><th></th></tr></thead>
+                                <tbody>
+                                    @forelse($veiculo->planosManutencao as $p)
+                                        <tr class="{{ $p->ativo ? '' : 'text-muted' }}">
+                                            <td class="fw-semibold">{{ $p->nome }} @unless($p->ativo)<span class="badge text-bg-light border">inativo</span>@endunless</td>
+                                            <td>{{ $p->descricaoIntervalo() }}</td>
+                                            <td>{{ $p->ultimo_km !== null ? number_format($p->ultimo_km, 0, ',', '.').' km' : '—' }}<br>{{ $p->ultima_data?->format('d/m/Y') }}</td>
+                                            <td class="{{ $p->ativo && $p->vencido($veiculo->km_atual) ? 'text-danger fw-semibold' : '' }}">
+                                                {{ $p->proximoKm() !== null ? number_format($p->proximoKm(), 0, ',', '.').' km' : '' }}<br>{{ $p->proximaData()?->format('d/m/Y') }}
+                                            </td>
+                                            <td class="text-end text-nowrap">
+                                                @can('manutencoes.gerenciar')
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#plano-{{ $p->id }}" title="Editar"><i class="bi bi-pencil"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" data-confirm-delete data-url="{{ route('planos.destroy', $p) }}" data-title="Remover plano" data-message="Remover o plano &quot;{{ $p->nome }}&quot;?"><i class="bi bi-trash"></i></button>
+                                                @endcan
+                                            </td>
+                                        </tr>
+                                        @can('manutencoes.gerenciar')
+                                            <tr class="collapse" id="plano-{{ $p->id }}"><td colspan="5" style="background:#F7F8FA">
+                                                <form method="POST" action="{{ route('planos.update', $p) }}" class="row g-2 align-items-end">@csrf @method('PUT')
+                                                    @include('veiculos._plano_campos', ['plano' => $p])
+                                                    <div class="col-md-2"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="ativo" value="1" id="ativo-{{ $p->id }}" @checked($p->ativo)><label class="form-check-label" for="ativo-{{ $p->id }}">Ativo</label></div></div>
+                                                    <div class="col-md-1 d-grid"><button class="btn btn-sm btn-gc-primary"><i class="bi bi-check-lg"></i></button></div>
+                                                </form>
+                                            </td></tr>
+                                        @endcan
+                                    @empty
+                                        <tr><td colspan="5" class="text-muted">Nenhum plano cadastrado.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                            @can('manutencoes.gerenciar')
+                                <form method="POST" action="{{ route('planos.store', $veiculo) }}" class="row g-2 align-items-end border rounded p-2">@csrf
+                                    <div class="col-12 small fw-semibold">Novo plano</div>
+                                    @include('veiculos._plano_campos', ['plano' => null])
+                                    <div class="col-md-3 d-grid"><button class="btn btn-sm btn-gc-primary"><i class="bi bi-plus-lg"></i> Adicionar</button></div>
+                                </form>
+                            @endcan
+                        </div>
+                    @endcan
 
                     {{-- ===== Histórico ===== --}}
                     <div class="tab-pane fade" id="tab-historico">

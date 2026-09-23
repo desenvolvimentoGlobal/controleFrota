@@ -64,6 +64,23 @@
                 </div>
             </div>
 
+            @can('manutencoes.ver')
+                <div class="card mb-3">
+                    <div class="card-header bg-white"><strong><i class="bi bi-wrench-adjustable"></i> Manutenção</strong></div>
+                    <div class="card-body small">
+                        @if($ocorrencia->manutencao)
+                            <a href="{{ route('manutencoes.show', $ocorrencia->manutencao) }}">#{{ $ocorrencia->manutencao->id }} {{ $ocorrencia->manutencao->nome }}</a>
+                            <span class="badge badge-situacao {{ $ocorrencia->manutencao->situacao->badge() }}">{{ $ocorrencia->manutencao->situacao->rotulo() }}</span>
+                        @else
+                            <span class="text-muted">Nenhuma manutenção vinculada.</span>
+                            @can('manutencoes.gerenciar')
+                                <div class="mt-2"><a href="{{ route('manutencoes.create', ['ocorrencia_id' => $ocorrencia->id]) }}" class="btn btn-sm btn-outline-danger"><i class="bi bi-wrench-adjustable"></i> Abrir manutenção</a></div>
+                            @endcan
+                        @endif
+                    </div>
+                </div>
+            @endcan
+
             @can('contestar', $ocorrencia)
                 <div class="card mb-3 border-warning">
                     <div class="card-header bg-white"><strong>Contestar</strong></div>

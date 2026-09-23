@@ -63,7 +63,9 @@ Nome do projeto na infra: `frota`.
 
 ## Fases
 
-0 Fundação ✔ (22/09/2026) · 1 Cadastros ✔ (23/09/2026) · 2 Alocação e checagem ✔ (24/09/2026) · 3 Manutenção · 4 Financeiro · 5 Integrações.
+0 Fundação ✔ · 1 Cadastros ✔ · 2 Alocação e checagem ✔ · 3 Manutenção ✔ · 4 Financeiro · 5 Integrações.
+
+Regras da fase 3: toda ação na manutenção passa pelo `ManutencaoService`, que grava `manutencao_movimentacoes`; o veículo volta a disponível na conclusão/cancelamento só se nenhuma outra manutenção o mantiver parado (`bloqueou_veiculo` ou `em_prestacao`); custo de uma manutenção = `preco_final` ou, sem ele, `preco_previsto` (`Manutencao::custo()`); valores pt-BR entram por `App\Support\Numero::dePtBr()`; `aberta_por_id` nulo = aberta pelo scheduler.
 
 Regras da fase 2: transições `em_uso`/`concluida` da alocação só acontecem em `ChecagemService::concluir`; fotos de checagem ficam no disco `local` em `checagens/{id}/` e são servidas por `checagens.foto`; a foto de comparação é sempre a última checagem **concluída** do veículo (`ChecagemService::ultimaChecagemConcluida`); `config/frota.php` define itens de checagem e retenção.
 

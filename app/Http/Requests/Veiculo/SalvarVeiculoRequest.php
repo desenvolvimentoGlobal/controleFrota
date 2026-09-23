@@ -8,6 +8,7 @@ use App\Enums\CaracteristicasVeiculo as C;
 use App\Enums\CondicaoVeiculo;
 use App\Models\Veiculo;
 use App\Rules\Placa;
+use App\Support\Numero;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class SalvarVeiculoRequest extends FormRequest
             'placa' => Placa::normalizar($this->input('placa')),
             'chassi' => strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $this->input('chassi')) ?? '') ?: null,
             'renavam' => preg_replace('/\D/', '', (string) $this->input('renavam')) ?: null,
-            'valor_aquisicao' => $this->numeroPtBr($this->input('valor_aquisicao')),
+            'valor_aquisicao' => Numero::dePtBr($this->input('valor_aquisicao')),
         ]);
     }
 
@@ -114,19 +115,5 @@ class SalvarVeiculoRequest extends FormRequest
         }
 
         return $dados;
-    }
-
-    /** "12.345,67" → "12345.67"; devolve null para vazio. */
-    private function numeroPtBr(mixed $valor): ?string
-    {
-        $texto = trim((string) $valor);
-        if ($texto === '') {
-            return null;
-        }
-        if (preg_match('/^\d+([.,]\d+)?$/', $texto) && ! str_contains($texto, ',')) {
-            return $texto;
-        }
-
-        return str_replace(',', '.', str_replace('.', '', $texto));
     }
 }

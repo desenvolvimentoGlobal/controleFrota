@@ -26,6 +26,24 @@
         </div>
     </div>
 
+    @if($manutencao)
+        <h6 class="text-muted text-uppercase small mb-2">Manutenção</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-lg-3">
+                <x-stat-card icon="bi-hourglass" label="Em espera" :value="$manutencao['em_espera']" :tone="$manutencao['em_espera'] > 0 ? 'amber' : 'green'" :href="route('manutencoes.index', ['situacao' => 'em_espera'])" />
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <x-stat-card icon="bi-tools" label="Em prestação" :value="$manutencao['em_prestacao']" tone="teal" :href="route('manutencoes.index', ['situacao' => 'em_prestacao'])" />
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <x-stat-card icon="bi-alarm" label="Com prazo vencido" :value="$manutencao['atrasadas']" :tone="$manutencao['atrasadas'] > 0 ? 'red' : 'green'" :href="route('manutencoes.index', ['situacao' => 'abertas'])" />
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <x-stat-card icon="bi-cash-coin" label="Custo concluído no mês" :value="\App\Support\Numero::moeda($manutencao['custo_mes'])" tone="navy" />
+            </div>
+        </div>
+    @endif
+
     <h6 class="text-muted text-uppercase small mb-2">Frota</h6>
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-lg-3">

@@ -76,12 +76,12 @@
             </a>
 
             {{-- ===== Manutenção (fase 3) ===== --}}
-            @if(auth()->user()->can('manutencoes.gerenciar') || auth()->user()->can('fornecedores.gerenciar'))
+            @if(auth()->user()->can('manutencoes.ver') || auth()->user()->can('fornecedores.gerenciar'))
                 <div class="gc-nav-section">Manutenção</div>
-                @can('manutencoes.gerenciar')
-                    <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 3">
+                @can('manutencoes.ver')
+                    <a href="{{ route('manutencoes.index') }}" class="gc-nav-link {{ request()->routeIs('manutencoes.*') ? 'active' : '' }}">
                         <i class="bi bi-wrench-adjustable"></i> Manutenções
-                    </span>
+                    </a>
                 @endcan
                 @can('fornecedores.gerenciar')
                     <a href="{{ route('fornecedores.index') }}" class="gc-nav-link {{ request()->routeIs('fornecedores.*') ? 'active' : '' }}">

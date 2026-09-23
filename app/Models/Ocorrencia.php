@@ -58,6 +58,11 @@ class Ocorrencia extends Model
         return $this->belongsTo(Usuario::class, 'revisada_por_id');
     }
 
+    public function manutencao(): BelongsTo
+    {
+        return $this->belongsTo(Manutencao::class, 'manutencao_id');
+    }
+
     public function scopeAbertas(Builder $query): Builder
     {
         return $query->where('situacao', SituacaoOcorrencia::Aberta->value);

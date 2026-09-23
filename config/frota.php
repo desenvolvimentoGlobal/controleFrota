@@ -92,6 +92,16 @@ return [
     ],
 
     /*
+    | Manutenção: antecedência com que um plano preventivo abre a manutenção
+    | (o que vier primeiro: km ou dias) e limites de anexo.
+    */
+    'manutencao' => [
+        'antecedencia_km' => 500,
+        'antecedencia_dias' => 7,
+        'anexo_max_kb' => 10240,
+    ],
+
+    /*
     | Alertas do painel e do scheduler.
     */
     'alertas' => [

@@ -78,7 +78,10 @@ class VeiculoController extends Controller
 
     public function show(Veiculo $veiculo): View
     {
-        $veiculo->load(['condicoes.atualizadoPor:id,nome', 'historicoEstados.usuario:id,nome']);
+        $veiculo->load([
+            'condicoes.atualizadoPor:id,nome', 'historicoEstados.usuario:id,nome', 'planosManutencao',
+            'manutencoes' => fn ($q) => $q->with('fornecedor:id,razao_social,nome_fantasia')->latest('id')->limit(10),
+        ]);
 
         return view('veiculos.show', [
             'veiculo' => $veiculo,

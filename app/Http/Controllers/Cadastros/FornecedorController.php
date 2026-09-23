@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Fornecedor\SalvarFornecedorRequest;
 use App\Http\Requests\Usuario\SalvarUsuarioRequest;
 use App\Models\Fornecedor;
+use App\Models\Manutencao;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -74,7 +75,10 @@ class FornecedorController extends Controller
 
     public function destroy(Fornecedor $fornecedor): RedirectResponse
     {
-        // Fase 3: bloquear quando houver manutenções vinculadas.
+        if (Manutencao::where('fornecedor_id', $fornecedor->id)->exists()) {
+            return back()->with('erro', 'Fornecedor com manutenções registradas não pode ser excluído. Inative-o.');
+        }
+
         $fornecedor->delete();
 
         return redirect()->route('fornecedores.index')->with('sucesso', 'Fornecedor excluído.');

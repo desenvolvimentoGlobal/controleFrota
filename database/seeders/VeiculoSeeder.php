@@ -38,6 +38,12 @@ class VeiculoSeeder extends Seeder
             'seguro_validade' => now()->addMonths(8)->toDateString(), 'seguradora' => 'Porto Seguro',
         ]);
 
+        $onix = Veiculo::where('placa', 'BRA2E19')->first();
+        $onix?->planosManutencao()->create([
+            'nome' => 'Troca de óleo e filtros', 'intervalo_km' => 10000, 'intervalo_dias' => 180,
+            'ultimo_km' => 12500, 'ultima_data' => now()->subMonths(2)->toDateString(), 'ativo' => true,
+        ]);
+
         $servico->criar([
             'nome' => 'Strada prata', 'placa' => 'ABC1234', 'chassi' => '9BD281A2NPY654321',
             'marca' => 'Fiat', 'modelo' => 'Strada', 'versao' => 'Freedom 1.3', 'ano_fabricacao' => 2022, 'ano_modelo' => 2022,
