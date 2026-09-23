@@ -25,7 +25,11 @@ x-app-build: &app-build
   dockerfile: Dockerfile
   target: app
   args:
-    INSTALL_DEV: "true"
+    # ⚠️ "false" na BASE: produção não leva PHPUnit, Pint nem Faker para dentro
+    # da imagem. O dev liga de volta no compose.dev.yaml. Seguro porque nenhum
+    # seeder usa factory — seeder novo que dependa de Faker quebraria AQUI, no
+    # deploy, e não no teste.
+    INSTALL_DEV: "false"
 
 # Ambiente operacional do Laravel dentro do container (NÃO contém segredos).
 # Estes valores sobrescrevem o .env: o phpdotenv do Laravel NÃO sobrepõe
@@ -141,7 +145,14 @@ services:
       - "traefik.docker.network=edge"
       # ⚠️ Router/service com nome ÚNICO por projeto. DOIS projetos com o mesmo
       #    nome de router = tráfego cai no container errado, SEM erro visível.
-      - "traefik.http.routers.frota.rule=Host(`frota.SEU-IP.nip.io`)"
+      # ⚠️ O HOST VEM DO `.env` DO HOST (`TRAEFIK_HOST`), com o valor de produção
+      #    como default. É o que evita editar este arquivo VERSIONADO no servidor
+      #    para trocar o domínio — a dívida que o gestaoEmpresarial pagou quando
+      #    ligou o TLS com `nano` e o servidor divergiu do Git.
+      #
+      # Vizinhos no mesmo Traefik: gestao. · criacao-os. · pessoas. · site. ·
+      # tarefas. · financeiro. — e frota.
+      - "traefik.http.routers.frota.rule=Host(`${TRAEFIK_HOST:-frota.18-231-84-211.nip.io}`)"
       # HTTPS (Let's Encrypt via Traefik). O `certresolver=le` supõe que o
       # Traefik do host tem um resolver chamado `le` configurado (é o caso deste
       # servidor). E então SESSION_SECURE_COOKIE=true no .env.docker.

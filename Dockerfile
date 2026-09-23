@@ -7,7 +7,7 @@
 #
 # Este projeto NÃO tem pipeline de front-end (Bootstrap/Chart.js via CDN;
 # public/css e public/js são estáticos versionados) — não há stage Node.
-# A mesma imagem "app" é usada pelos serviços app e scheduler.
+# A mesma imagem "app" é usada pelos serviços app e worker (schedule:work).
 # =============================================================================
 
 

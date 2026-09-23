@@ -30,8 +30,9 @@ mkdir -p \
     bootstrap/cache \
     2>/dev/null || true
 
-# 1b) Link público das fotos dos colaboradores (organograma, 2026-09-18).
-#     Idempotente: só cria se não existir. Sem ele a foto salva não abre.
+# 1b) Link público das fotos de veículos e usuários (disco `public`), como o
+#     `storage:link`. Idempotente: só cria se não existir. Quem SERVE as fotos
+#     é o `web` (link próprio no Dockerfile); este é para o Laravel.
 if [ ! -e public/storage ]; then
     ln -s "$APP_DIR/storage/app/public" public/storage 2>/dev/null || true
 fi

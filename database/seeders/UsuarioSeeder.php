@@ -11,13 +11,21 @@ use App\Models\Usuario;
 use Illuminate\Database\Seeder;
 
 /**
- * Usuários iniciais. Em produção só o admin deve existir (troque a senha no
- * primeiro acesso: `deve_trocar_senha`). Os demais são de desenvolvimento.
+ * Usuários de DESENVOLVIMENTO (senha `senha123`). Em produção não cria nada.
+ *
+ * ⚠️ Senha conhecida num servidor exposto é porta aberta: até a troca
+ * obrigatória, qualquer um que leia este arquivo entra como admin. O primeiro
+ * usuário de produção nasce pelo `php artisan usuario:criar`, com a senha
+ * digitada às cegas (docs/SERVIDOR-SETUP.md, Parte 6).
  */
 class UsuarioSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->isProduction()) {
+            return;
+        }
+
         $perfil = fn (string $codigo) => Perfil::where('codigo', $codigo)->value('id');
         $setor = fn (string $nome) => Setor::where('nome', $nome)->value('id');
         $cargo = fn (string $nome) => Cargo::where('nome', $nome)->value('id');
@@ -33,13 +41,8 @@ class UsuarioSeeder extends Seeder
                 'setor_id' => $setor('Administrativo'),
                 'cargo_id' => $cargo('Diretor'),
                 'ativo' => true,
-                'deve_trocar_senha' => app()->isProduction(),
             ],
         );
-
-        if (app()->isProduction()) {
-            return;
-        }
 
         $gestor = Usuario::updateOrCreate(
             ['login' => 'gestor'],

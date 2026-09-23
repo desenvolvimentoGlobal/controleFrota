@@ -12,7 +12,7 @@ Irmão de `gestaoPessoas`, `gestaoEmpresarial` e `emissaoOS`: mesma stack
 - Guia técnico e convenções: [CLAUDE.md](CLAUDE.md)
 - Planejamento, modelo de dados, fluxos e decisões: [docs/PLANEJAMENTO.md](docs/PLANEJAMENTO.md)
 - API de integração: [docs/API.md](docs/API.md)
-- Deploy em produção: [docs/DEPLOY.md](docs/DEPLOY.md)
+- Deploy em produção, passo a passo no terminal: [docs/SERVIDOR-SETUP.md](docs/SERVIDOR-SETUP.md)
 
 ## Rodar em desenvolvimento (WAMP)
 

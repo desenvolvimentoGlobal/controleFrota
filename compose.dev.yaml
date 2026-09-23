@@ -6,8 +6,9 @@
 #
 # O que faz:
 #   - monta o código do host (edição ao vivo);
-#   - preserva vendor/ e public/build da imagem via volumes nomeados (para o
-#     bind mount não escondê-los e quebrar a aplicação);
+#   - preserva o vendor/ da imagem via volume nomeado (para o bind mount não
+#     escondê-lo e quebrar a aplicação);
+#   - liga INSTALL_DEV=true (a base de produção sobe com false);
 #   - liga APP_ENV=local / APP_DEBUG=true e logs em arquivo;
 #   - publica portas SÓ no dev (produção não publica nada — entra pelo Traefik).
 # =============================================================================
@@ -15,6 +16,12 @@
 services:
 
   app:
+    # No dev as ferramentas de desenvolvimento SÃO o trabalho: PHPUnit, Pint e
+    # Faker entram na imagem. A base sobe com `false` para a produção não levar
+    # nada disso.
+    build:
+      args:
+        INSTALL_DEV: "true"
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -22,10 +29,12 @@ services:
     volumes:
       - .:/var/www/html                                   # código ao vivo
       - vendor:/var/www/html/vendor                       # vendor da imagem
-      - public-build:/var/www/html/public/build           # assets da imagem
       - storage-private:/var/www/html/storage/app/private # uploads persistentes
 
   worker:
+    build:
+      args:
+        INSTALL_DEV: "true"
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -33,7 +42,6 @@ services:
     volumes:
       - .:/var/www/html
       - vendor:/var/www/html/vendor
-      - public-build:/var/www/html/public/build
       - storage-private:/var/www/html/storage/app/private
 
   web:
@@ -43,8 +51,7 @@ services:
     ports:
       - "8080:80"   # host 8080 (evita conflito com Apache/WAMP na 80)
     volumes:
-      - ./public:/var/www/html/public                 # estáticos ao vivo
-      - public-build:/var/www/html/public/build       # assets Vite compilados
+      - ./public:/var/www/html/public                 # estáticos ao vivo (sem Vite: css/js versionados)
 
   db:
     ports:
@@ -52,7 +59,6 @@ services:
 
 volumes:
   vendor:        # dependências PHP instaladas dentro da imagem
-  public-build:  # assets Vite compilados dentro da imagem
 
 networks:
   # Em produção a `edge` é EXTERNA (criada no host, onde o Traefik enxerga os

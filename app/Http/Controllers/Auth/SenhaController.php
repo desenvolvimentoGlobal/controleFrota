@@ -22,7 +22,7 @@ class SenhaController extends Controller
     {
         $dados = $request->validate([
             'senha_atual' => ['required', 'current_password'],
-            'senha' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'senha' => ['required', 'confirmed', Password::defaults()],
         ], [], [
             'senha_atual' => 'senha atual',
             'senha' => 'nova senha',

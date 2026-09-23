@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,6 +39,10 @@ class AppServiceProvider extends ServiceProvider
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
+
+        // Régua ÚNICA de senha: cadastro de usuário, troca de senha e os
+        // comandos usuario:criar / usuario:senha. Mudou aqui, muda em todos.
+        Password::defaults(fn () => Password::min(8)->letters()->numbers());
 
         $this->registrarPolicies();
         $this->registrarGates();

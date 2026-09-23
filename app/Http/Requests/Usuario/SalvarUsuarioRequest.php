@@ -70,7 +70,7 @@ class SalvarUsuarioRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', Rule::unique('usuarios', 'email')->ignore($usuario)],
             'cpf' => ['required', 'digits:11', new Cpf, Rule::unique('usuarios', 'cpf')->ignore($usuario)],
             'perfil_id' => ['required', Rule::in($perfisPermitidos)],
-            'senha' => [$usuario ? 'nullable' : 'required', 'string', Password::min(8)->letters()->numbers()],
+            'senha' => [$usuario ? 'nullable' : 'required', 'string', Password::defaults()],
             'setor_id' => ['nullable', 'exists:setores,id'],
             'cargo_id' => ['nullable', 'exists:cargos,id'],
             'gestor_id' => array_values(array_filter([

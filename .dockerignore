@@ -1,19 +1,45 @@
-# Nunca entram na imagem:
-.git
-node_modules
-vendor
-storage/*.key
+# O que NÃO entra na imagem.
+#
+# ⚠️ As duas primeiras linhas são de segurança, não de tamanho: os `.env`
+# carregam a senha do banco e os tokens das integrações. Uma imagem com eles
+# dentro leva os segredos para todo lugar em que for publicada — e eles chegam
+# ao container por `env_file`/`environment`, em runtime, nunca pela imagem.
 .env
-.env.docker
-tests
-README.md
-planilha_regras_binificacao
-docker/app.env.example
+.env.*
+!.env.example
+!.env.docker.example
 
-# Artefatos de runtime/compilados do host (recriados no container)
-storage/framework/cache/*
-storage/framework/sessions/*
-storage/framework/views/*
-storage/logs/*
-bootstrap/cache/*
+# Dependências: reinstaladas dentro da imagem, na plataforma certa. Copiar o
+# vendor do Windows traria binários que não rodam no Linux.
+/vendor
+/node_modules
+
+# Estado local. ⚠️ As fotos de checagem e de veículos do DEV (storage/app/*) e
+# o link public/storage do `storage:link` do Windows não podem ir para a
+# imagem: em produção esses caminhos são volumes, e a foto local vazaria para
+# dentro da imagem (e o link do Windows quebraria o COPY).
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/app/private/*
+/storage/app/public/*
+/storage/*.key
+/public/storage
+/bootstrap/cache/*
+*.log
+/.phpunit.cache
 .phpunit.result.cache
+
+# Repositório e ferramentas
+/.git
+/.github
+/.idea
+/.vscode
+/.claude
+.DS_Store
+Thumbs.db
+
+# Testes não vão para a imagem de produção.
+/tests
+phpunit.xml

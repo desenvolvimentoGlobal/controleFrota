@@ -14,12 +14,12 @@
 #   - build separado do up: se o build falhar, os containers antigos continuam
 #     no ar e nada cai.
 #
-# Ver SERVIDOR-SETUP.md (Rollback) se algo der errado depois do migrate.
+# Ver docs/SERVIDOR-SETUP.md ("Se der errado") se algo der errado depois do migrate.
 # =============================================================================
 set -euo pipefail
 
 # --- Configuração (ajuste por projeto) --------------------------------------
-PROJETO="frota"                  # nome do projeto (subpasta em /opt/backups)
+PROJETO="frota"                        # nome do projeto (subpasta em /opt/backups)
 BRANCH="main"                          # branch de produção
 DUMP_SH="/opt/backups/dump.sh"         # script de backup do banco
 BACKUP_DIR="/opt/backups/${PROJETO}"   # onde o dump.sh grava os .sql.gz
@@ -89,7 +89,7 @@ if [ -n "$migs_novas" ]; then
     if [ -n "$destrutivas" ]; then
         c_red "⚠️  Estas migrations contêm DROP/RENAME — risco de perda IRREVERSÍVEL de dados:"
         echo "$destrutivas" | sed 's/^/     /'
-        c_red "    O backup do passo 1 é a sua única volta (ver SERVIDOR-SETUP.md > Rollback)."
+        c_red "    O backup do passo 1 é a sua única volta (ver docs/SERVIDOR-SETUP.md > Se der errado)."
     fi
     confirmar "Aplicar estas migrations em PRODUÇÃO?"
 else
@@ -103,7 +103,7 @@ titulo "4/11  Verificando árvore de trabalho"
 if [ -n "$(git status --porcelain)" ]; then
     c_red "Há alterações locais NÃO commitadas no servidor:"
     git --no-pager status --short
-    abortar "o servidor divergiu do Git (alguém editou aqui?). Resolva antes — o servidor só recebe git pull. Ver SERVIDOR-SETUP.md > REGRA PERMANENTE."
+    abortar "o servidor divergiu do Git (alguém editou aqui?). Resolva antes — o servidor só recebe git pull. Ver docs/SERVIDOR-SETUP.md > Regra permanente."
 fi
 c_grn "Árvore limpa."
 
@@ -183,5 +183,18 @@ fi
 echo
 echo "Últimos logs (2 min):"
 docker compose logs --since 2m app web worker || true
+
+# --- O agendador ------------------------------------------------------------
+# ⚠️ Aqui o agendador NÃO é cron: é o serviço `worker` (schedule:work). Sem ele
+# a falha é MUDA: alocação aprovada não expira nem reserva o carro no dia, o
+# atraso não avisa, a preventiva não abre, o vencimento não alerta e as fotos
+# de 6 meses não somem — sem erro em lugar nenhum. Por isso o deploy confere.
+titulo "Agendador (serviço worker)"
+if docker compose ps --status running --services 2>/dev/null | grep -qx worker; then
+    c_grn "worker rodando (schedule:work)."
+else
+    c_red "⚠️  O serviço worker NÃO está rodando: nenhuma rotina agendada vai acontecer."
+    c_red "    Veja: docker compose logs --tail 50 worker"
+fi
 
 c_grn "Deploy concluído: $(git rev-parse --short HEAD)"

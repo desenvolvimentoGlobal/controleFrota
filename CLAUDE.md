@@ -25,8 +25,17 @@ vendor\bin\pint                     # PSR-12
 Usuários de dev (senha `senha123`): `admin`, `gestor`, `motorista`, `financeiro`.
 Login aceita **login ou e-mail**.
 
-Docker: ver `compose.yaml`, `compose.dev.yaml`, `deploy.sh` e
-`gestaoEmpresarial/docs/template-projeto/README.md` (armadilhas do deploy).
+Docker: ver `compose.yaml`, `compose.dev.yaml`, `deploy.sh` e **`docs/SERVIDOR-SETUP.md`**
+(roteiro do servidor, escrito a partir do `contasReceber`, o deploy mais recente
+e mais confiável da casa — em dúvida sobre infra, compare com ele).
+Regras de infra: domínio do Traefik vem de `TRAEFIK_HOST` no `.env` do host (nunca
+editar `compose.yaml` no servidor); `INSTALL_DEV=false` na base e `true` só no
+`compose.dev.yaml`; Nginx com `resolver` + `fastcgi_pass` em variável (senão 502
+ao recriar o `app`); `deploy.sh` versionado com bit 100755; `.dockerignore` barra
+`.env*` e as fotos locais; em produção o seeder não cria usuário — o primeiro
+nasce por `php artisan usuario:criar` (e `usuario:senha` redefine); agendador é
+o serviço `worker` (`schedule:work`), **não** cron; régua de senha única em
+`Password::defaults()` (AppServiceProvider).
 Nome do projeto na infra: `frota`.
 
 ## Arquitetura
