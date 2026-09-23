@@ -13,6 +13,7 @@ use App\Models\Manutencao;
 use App\Models\Ocorrencia;
 use App\Models\Usuario;
 use App\Models\Veiculo;
+use App\Services\RelatorioCustoService;
 use Illuminate\View\View;
 
 /**
@@ -67,6 +68,20 @@ class PainelController extends Controller
                 ->whereBetween('concluida_em', [now()->startOfMonth(), now()->endOfMonth()])->sum('preco_final'),
         ] : null;
 
-        return view('painel.index', compact('frota', 'pessoas', 'operacao', 'manutencao'));
+        // Visão financeira: custo mensal e os veículos que mais custaram no ano.
+        $financeiro = null;
+        if ($usuario->can('financeiro.ver')) {
+            $relatorio = app(RelatorioCustoService::class);
+            $ano = $relatorio->gerar(['de' => now()->startOfYear()->toDateString(), 'ate' => today()->toDateString(), 'visao' => 'veiculo']);
+            $financeiro = [
+                'mensal' => $relatorio->ultimosMeses(6),
+                'ano_total' => $ano['resumo']['total'],
+                'ano_custo_km' => $ano['resumo']['custo_km'],
+                'comprometido' => $ano['resumo']['comprometido'],
+                'top_veiculos' => array_slice($ano['linhas'], 0, 5),
+            ];
+        }
+
+        return view('painel.index', compact('frota', 'pessoas', 'operacao', 'manutencao', 'financeiro'));
     }
 }

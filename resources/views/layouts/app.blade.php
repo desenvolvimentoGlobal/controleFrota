@@ -93,9 +93,9 @@
             {{-- ===== Financeiro (fase 4) ===== --}}
             @can('financeiro.ver')
                 <div class="gc-nav-section">Financeiro</div>
-                <span class="gc-nav-link disabled" style="opacity:.55;cursor:default" aria-disabled="true" title="Fase 4">
-                    <i class="bi bi-cash-coin"></i> Custos
-                </span>
+                <a href="{{ route('relatorios.custos') }}" class="gc-nav-link {{ request()->routeIs('relatorios.custos*') ? 'active' : '' }}">
+                    <i class="bi bi-cash-coin"></i> Custos de manutenção
+                </a>
             @endcan
 
             {{-- ===== Administração ===== --}}

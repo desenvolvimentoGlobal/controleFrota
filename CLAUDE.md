@@ -63,7 +63,9 @@ Nome do projeto na infra: `frota`.
 
 ## Fases
 
-0 Fundação ✔ · 1 Cadastros ✔ · 2 Alocação e checagem ✔ · 3 Manutenção ✔ · 4 Financeiro · 5 Integrações.
+0 Fundação ✔ · 1 Cadastros ✔ · 2 Alocação e checagem ✔ · 3 Manutenção ✔ · 4 Financeiro ✔ · 5 Integrações.
+
+Regras da fase 4: números de custo saem **só** do `RelatorioCustoService` (tela, PDF, Excel e painel); realizado conta `prestada` por `concluida_em` e `preco_final`; aberto é "comprometido" e nunca soma no realizado. Exportação usa `<a data-gc-export data-gc-export-tipo="PDF|Excel">` e é auditada. PDF com `isFontSubsettingEnabled`. `maatwebsite/excel` está na **v4**: planilha com abas implementa `Export` + `WithMultipleSheets`, e `styles()` retorna `?array`.
 
 Regras da fase 3: toda ação na manutenção passa pelo `ManutencaoService`, que grava `manutencao_movimentacoes`; o veículo volta a disponível na conclusão/cancelamento só se nenhuma outra manutenção o mantiver parado (`bloqueou_veiculo` ou `em_prestacao`); custo de uma manutenção = `preco_final` ou, sem ele, `preco_previsto` (`Manutencao::custo()`); valores pt-BR entram por `App\Support\Numero::dePtBr()`; `aberta_por_id` nulo = aberta pelo scheduler.
 

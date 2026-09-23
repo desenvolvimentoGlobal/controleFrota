@@ -26,6 +26,55 @@
         </div>
     </div>
 
+    @if($financeiro)
+        <h6 class="text-muted text-uppercase small mb-2">Financeiro <span class="text-lowercase fw-normal">(ano de {{ now()->year }})</span></h6>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong>Custo de manutenção — últimos 6 meses</strong>
+                        <a href="{{ route('relatorios.custos') }}" class="small">Relatório completo <i class="bi bi-arrow-right"></i></a>
+                    </div>
+                    <div class="card-body"><canvas id="painel-custo-mensal" height="170"></canvas></div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-body pb-2">
+                        <div class="d-flex justify-content-between small mb-2">
+                            <span>Realizado no ano <strong class="d-block fs-6 gc-valor-sensivel">{{ \App\Support\Numero::moeda($financeiro['ano_total']) }}</strong></span>
+                            <span>Custo por km <strong class="d-block fs-6 gc-valor-sensivel">{{ $financeiro['ano_custo_km'] !== null ? \App\Support\Numero::moeda($financeiro['ano_custo_km']) : '—' }}</strong></span>
+                            <span>Em aberto <strong class="d-block fs-6 gc-valor-sensivel">{{ \App\Support\Numero::moeda($financeiro['comprometido']) }}</strong></span>
+                        </div>
+                        <div class="text-muted text-uppercase small mb-1">Veículos que mais custaram</div>
+                        @forelse($financeiro['top_veiculos'] as $l)
+                            <div class="d-flex justify-content-between small border-bottom py-1">
+                                <span>{{ $l['rotulo'] }} <span class="text-muted">{{ $l['detalhe'] }}</span></span>
+                                <span class="gc-valor-sensivel">{{ \App\Support\Numero::moeda($l['custo']) }} <span class="text-muted">({{ number_format($l['percentual'], 0) }}%)</span></span>
+                            </div>
+                        @empty
+                            <div class="small text-muted">Nenhuma manutenção concluída no ano.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+        @push('scripts')
+        <script>
+            (function () {
+                const el = document.getElementById('painel-custo-mensal');
+                if (!el || typeof Chart === 'undefined') return;
+                new Chart(el, {
+                    type: 'bar',
+                    data: { labels: @json($financeiro['mensal']['rotulos']), datasets: [{ data: @json($financeiro['mensal']['valores']), backgroundColor: '#27425F', borderRadius: 4 }] },
+                    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => c.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) } } },
+                               scales: { y: { beginAtZero: true, ticks: { callback: (v) => v.toLocaleString('pt-BR') } } } },
+                });
+            })();
+        </script>
+        @endpush
+    @endif
+
     @if($manutencao)
         <h6 class="text-muted text-uppercase small mb-2">Manutenção</h6>
         <div class="row g-3 mb-4">

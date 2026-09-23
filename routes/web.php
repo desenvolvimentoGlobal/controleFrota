@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\Cadastros\CargoController;
 use App\Http\Controllers\Cadastros\FornecedorController;
 use App\Http\Controllers\Cadastros\SetorController;
+use App\Http\Controllers\Financeiro\RelatorioCustoController;
 use App\Http\Controllers\Frota\CondicaoVeiculoController;
 use App\Http\Controllers\Frota\VeiculoController;
 use App\Http\Controllers\Manutencao\ManutencaoController;
@@ -91,6 +92,13 @@ Route::middleware(['auth', 'trocar-senha'])->group(function (): void {
         Route::post('veiculos/{veiculo}/planos', [PlanoManutencaoController::class, 'store'])->name('planos.store');
         Route::put('planos/{plano}', [PlanoManutencaoController::class, 'update'])->name('planos.update');
         Route::delete('planos/{plano}', [PlanoManutencaoController::class, 'destroy'])->name('planos.destroy');
+    });
+
+    // ── Financeiro: relatórios de custo (admin, financeiro) ────────────────────
+    Route::middleware('can:financeiro.ver')->group(function (): void {
+        Route::get('relatorios/custos', [RelatorioCustoController::class, 'index'])->name('relatorios.custos');
+        Route::get('relatorios/custos/pdf', [RelatorioCustoController::class, 'pdf'])->name('relatorios.custos.pdf');
+        Route::get('relatorios/custos/excel', [RelatorioCustoController::class, 'excel'])->name('relatorios.custos.excel');
     });
 
     // ── Fornecedores (admin, gestor, financeiro) ──────────────────────────────
