@@ -83,6 +83,45 @@ class UsuarioCrudTest extends TestCase
             ->assertSessionHasErrors('login');
     }
 
+    public function test_cpf_e_opcional_mas_valido_e_unico_quando_informado(): void
+    {
+        $admin = $this->usuario('admin', '11144477735');
+
+        // Sem CPF: cadastra, e a ficha e a lista abrem.
+        $this->actingAs($admin)->post(route('usuarios.store'), $this->dadosValidos(['cpf' => '']))
+            ->assertRedirect(route('usuarios.index'));
+        $semCpf = Usuario::where('login', 'maria.motorista')->firstOrFail();
+        $this->assertNull($semCpf->cpf);
+        $this->actingAs($admin)->get(route('usuarios.show', $semCpf))->assertOk();
+
+        // Dois sem CPF convivem (o unique aceita vários NULL).
+        $this->actingAs($admin)->post(route('usuarios.store'), $this->dadosValidos([
+            'cpf' => null, 'login' => 'joao', 'email' => 'joao@teste.local', 'nome' => 'João Motorista',
+        ]))->assertRedirect(route('usuarios.index'));
+
+        // Editar sem mexer no CPF vazio continua funcionando.
+        $this->actingAs($admin)->put(route('usuarios.update', $semCpf), $this->dadosValidos(['cpf' => '', 'senha' => '', 'ativo' => 1]))
+            ->assertRedirect(route('usuarios.index'));
+
+        // Informado, continua valendo a regra: válido e único.
+        $this->actingAs($admin)->from(route('usuarios.create'))
+            ->post(route('usuarios.store'), $this->dadosValidos(['cpf' => '111.444.777-35', 'login' => 'x', 'email' => 'x@teste.local']))
+            ->assertSessionHasErrors('cpf');
+    }
+
+    public function test_busca_por_nome_nao_traz_todo_mundo(): void
+    {
+        $admin = $this->usuario('admin', '11144477735');
+        $outro = $this->usuario('geral', '39053344705', ['nome' => 'Carlos Souza']);
+
+        // "maria" não tem dígito: antes virava `cpf like '%%'` e casava com todos.
+        $this->actingAs($admin)->get(route('usuarios.index', ['busca' => 'maria']))
+            ->assertOk()->assertDontSee($outro->nome);
+
+        $this->actingAs($admin)->get(route('usuarios.index', ['busca' => '390.533']))
+            ->assertOk()->assertSee($outro->nome);
+    }
+
     public function test_gestor_so_enxerga_e_edita_a_propria_cadeia(): void
     {
         $admin = $this->usuario('admin', '11144477735');

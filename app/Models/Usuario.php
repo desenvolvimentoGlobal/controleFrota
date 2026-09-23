@@ -217,8 +217,13 @@ class Usuario extends Authenticatable
 
     // ─── Apresentação ─────────────────────────────────────────────────────────
 
-    public function getCpfFormatadoAttribute(): string
+    /** null quando o usuário não tem CPF (opcional desde 23/09/2026). */
+    public function getCpfFormatadoAttribute(): ?string
     {
+        if (blank($this->cpf)) {
+            return null;
+        }
+
         return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $this->cpf) ?? $this->cpf;
     }
 

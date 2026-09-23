@@ -33,7 +33,7 @@
     </div>
 
     <div class="col-md-3">
-        <label class="form-label gc-required">CPF</label>
+        <label class="form-label">CPF</label>
         <input type="text" name="cpf" value="{{ old('cpf', $usuario->cpf_formatado ?? '') }}" maxlength="14" class="form-control @error('cpf') is-invalid @enderror" placeholder="000.000.000-00">
         @error('cpf') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>

@@ -68,7 +68,8 @@ class SalvarUsuarioRequest extends FormRequest
             'nome' => ['required', 'string', 'max:255'],
             'login' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9._-]+$/', Rule::unique('usuarios', 'login')->ignore($usuario)],
             'email' => ['required', 'email', 'max:255', Rule::unique('usuarios', 'email')->ignore($usuario)],
-            'cpf' => ['required', 'digits:11', new Cpf, Rule::unique('usuarios', 'cpf')->ignore($usuario)],
+            // Opcional; quando informado, precisa ser válido e único.
+            'cpf' => ['nullable', 'digits:11', new Cpf, Rule::unique('usuarios', 'cpf')->ignore($usuario)],
             'perfil_id' => ['required', Rule::in($perfisPermitidos)],
             'senha' => [$usuario ? 'nullable' : 'required', 'string', Password::defaults()],
             'setor_id' => ['nullable', 'exists:setores,id'],

@@ -32,7 +32,7 @@ class CriarUsuarioCommand extends Command
                             {--nome= : Nome completo}
                             {--login= : Login de acesso}
                             {--email= : E-mail}
-                            {--cpf= : CPF (com ou sem máscara)}
+                            {--cpf= : CPF, opcional (com ou sem máscara; vazio = sem CPF)}
                             {--perfil= : Código do perfil (admin, gestor, financeiro, geral)}
                             {--senha= : Define a senha em vez de sortear (evite no terminal: fica no histórico)}';
 
@@ -51,7 +51,8 @@ class CriarUsuarioCommand extends Command
             'nome' => trim((string) ($this->option('nome') ?: $this->ask('Nome completo'))),
             'login' => mb_strtolower(trim((string) ($this->option('login') ?: $this->ask('Login de acesso')))),
             'email' => trim((string) ($this->option('email') ?: $this->ask('E-mail'))),
-            'cpf' => preg_replace('/\D/', '', (string) ($this->option('cpf') ?: $this->ask('CPF'))),
+            // `??` e não `?:`: `--cpf=` (vazio) diz "não tem" e não pergunta de novo.
+            'cpf' => preg_replace('/\D/', '', (string) ($this->option('cpf') ?? $this->ask('CPF (opcional — Enter para pular)'))) ?: null,
             'perfil' => $this->option('perfil') ?: $this->choice('Perfil', $codigos, array_search('admin', $codigos, true) ?: 0),
         ];
 
@@ -61,7 +62,7 @@ class CriarUsuarioCommand extends Command
             'nome' => ['required', 'string', 'max:255'],
             'login' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9._-]+$/', Rule::unique('usuarios', 'login')],
             'email' => ['required', 'email', 'max:255', Rule::unique('usuarios', 'email')],
-            'cpf' => ['required', 'digits:11', new Cpf, Rule::unique('usuarios', 'cpf')],
+            'cpf' => ['nullable', 'digits:11', new Cpf, Rule::unique('usuarios', 'cpf')],
             'perfil' => ['required', Rule::in($codigos)],
         ], [], ['nome' => 'nome', 'login' => 'login', 'email' => 'e-mail', 'cpf' => 'CPF', 'perfil' => 'perfil']);
 

@@ -37,13 +37,17 @@ class UsuarioController extends Controller
         $ativo = $request->input('ativo');
         $podeDirigir = $request->input('pode_dirigir');
 
+        // Busca pelo CPF só quando o texto tem dígitos: "maria" viraria
+        // `cpf like '%%'` e casaria com todo mundo que tem CPF.
+        $digitosBusca = preg_replace('/\D/', '', $busca) ?? '';
+
         $usuarios = Usuario::with(['perfil', 'setor', 'cargo', 'gestor:id,nome'])
             ->visiveisPara($request->user())
             ->when($busca !== '', fn ($q) => $q->where(fn ($sub) => $sub
                 ->where('nome', 'like', "%{$busca}%")
                 ->orWhere('email', 'like', "%{$busca}%")
                 ->orWhere('login', 'like', "%{$busca}%")
-                ->orWhere('cpf', 'like', '%'.preg_replace('/\D/', '', $busca).'%')))
+                ->when($digitosBusca !== '', fn ($c) => $c->orWhere('cpf', 'like', "%{$digitosBusca}%"))))
             ->when($request->integer('perfil_id'), fn ($q, $id) => $q->where('perfil_id', $id))
             ->when($request->integer('setor_id'), fn ($q, $id) => $q->where('setor_id', $id))
             ->when(in_array($ativo, ['0', '1'], true), fn ($q) => $q->where('ativo', $ativo === '1'))

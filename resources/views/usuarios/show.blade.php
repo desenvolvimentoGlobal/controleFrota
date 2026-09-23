@@ -30,7 +30,7 @@
                     <dl class="row mb-0 small">
                         <dt class="col-sm-3">Login</dt><dd class="col-sm-9">{{ $usuario->login }}</dd>
                         <dt class="col-sm-3">E-mail</dt><dd class="col-sm-9">{{ $usuario->email }}</dd>
-                        <dt class="col-sm-3">CPF</dt><dd class="col-sm-9">{{ $usuario->cpf_formatado }}</dd>
+                        <dt class="col-sm-3">CPF</dt><dd class="col-sm-9">{{ $usuario->cpf_formatado ?? '—' }}</dd>
                         <dt class="col-sm-3">Gestor</dt><dd class="col-sm-9">{{ $usuario->gestor->nome ?? '—' }}</dd>
                         <dt class="col-sm-3">Contato</dt><dd class="col-sm-9">{{ $usuario->celular ?: $usuario->telefone ?: '—' }}</dd>
                         <dt class="col-sm-3">Endereço</dt>

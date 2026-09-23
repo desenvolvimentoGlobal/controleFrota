@@ -59,6 +59,11 @@ class UsuarioPeloConsoleTest extends TestCase
 
         // Login, e-mail e CPF repetidos: mensagem, não erro de banco.
         $this->artisan('usuario:criar', $base + ['--login' => 'ana', '--no-interaction' => true])->assertFailed();
+
+        // CPF é opcional: `--cpf=` vazio cria sem CPF, sem perguntar de novo.
+        $this->artisan('usuario:criar', ['--nome' => 'Bia', '--login' => 'bia', '--email' => 'bia@global.com.br', '--cpf' => '', '--perfil' => 'geral', '--no-interaction' => true])
+            ->assertSuccessful();
+        $this->assertNull(Usuario::where('login', 'bia')->value('cpf'));
     }
 
     public function test_redefine_senha_esquecida_sem_alterar_nada_quando_falha(): void
