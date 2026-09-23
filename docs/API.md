@@ -105,17 +105,22 @@ motorista**, por isso exige o escopo.
 }
 ```
 
-## Como o emissaoOS pode consumir
+## Como o emissaoOS consome (feito em 23/09/2026)
 
-Hoje o planejamento de instalação do emissaoOS guarda veículos digitados à mão
-(tabela `veiculos`, `Veiculo::catalogo()` e `Veiculo::lembrar()`). O caminho
-sugerido, no mesmo molde de `app/Integracoes/GestaoPessoas.php` de lá:
+No emissaoOS (branch `melhorias`), o planejamento de instalação usa esta API:
 
-1. Criar `app/Integracoes/ControleFrota.php` com `veiculos()` e
-   `disponiveis($de, $ate)`, timeout curto e falha silenciosa (`null`).
-2. No planejamento, montar o autocomplete a partir de `disponiveis()` para o
-   dia da instalação, guardando descrição e placa como hoje (o "retrato"
-   continua valendo se a API cair).
-3. Configurar `CONTROLE_FROTA_URL` e o token emitido aqui.
+- `app/Integracoes/ControleFrota.php` chama `veiculos` e `alocacoes?de&ate`,
+  com cache de 120 s, timeout curto e falha silenciosa (`null`).
+- `app/Domain/Instalacao/Actions/VeiculosDaFrota.php` monta o autocomplete com
+  os veículos da frota primeiro. O escolhido é guardado lá como retrato
+  (descrição + placa), que continua valendo se a API cair.
+- O mesmo arquivo gera **avisos, sem bloquear**, em dois casos:
+  - veículo parado aqui: em manutenção, indisponível, baixado ou com sistema crítico;
+  - veículo com alocação solicitada, aprovada ou em uso que cruza o dia/período
+    da OS: dia 06–18, noite 18–06 do dia seguinte.
 
-Essa mudança é no repositório do emissaoOS e ainda **não foi feita**.
+Para ligar:
+
+1. Aqui: `php artisan integracao:token criar emissao-os --escopos=alocacoes`.
+2. Lá: `php artisan integracao:token <token> --sistema=controle-frota`.
+3. Lá: `CONTROLE_FROTA_URL` no `.env`.
