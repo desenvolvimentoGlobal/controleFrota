@@ -241,6 +241,22 @@
         });
     }
 
+    // ── Sair desinscreve este dispositivo ──────────────────────────────────────
+    // Celular/tablet compartilhado: sem isto, o próximo usuário continuaria
+    // recebendo as notificações (nomes, alocações, ocorrências) do anterior.
+    // Espera no máximo 2 s para não travar o logout.
+    if (suportado) {
+        document.querySelectorAll('form[action$="/logout"]').forEach(function (form) {
+            form.addEventListener('submit', function (ev) {
+                if (form.dataset.pushLimpo) { return; }
+                ev.preventDefault();
+                form.dataset.pushLimpo = '1';
+                var limite = new Promise(function (ok) { setTimeout(ok, 2000); });
+                Promise.race([desativar().catch(function () {}), limite]).then(function () { form.submit(); });
+            });
+        });
+    }
+
     // Registra o Service Worker e atualiza a UI (se existir na página).
     if (suportado) {
         registrarSW().then(function () {

@@ -12,6 +12,7 @@ use App\Models\Fornecedor;
 use App\Models\Manutencao;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /** Fornecedores de manutenção (cadastro próprio, decisão 22/09/2026). */
@@ -75,6 +76,9 @@ class FornecedorController extends Controller
 
     public function destroy(Fornecedor $fornecedor): RedirectResponse
     {
+        // Excluir é do admin (o botão só aparece para ele); os demais inativam.
+        Gate::authorize('administrar');
+
         if (Manutencao::where('fornecedor_id', $fornecedor->id)->exists()) {
             return back()->with('erro', 'Fornecedor com manutenções registradas não pode ser excluído. Inative-o.');
         }

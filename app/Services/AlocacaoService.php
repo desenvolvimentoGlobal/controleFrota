@@ -38,13 +38,16 @@ class AlocacaoService
         $saida = CarbonImmutable::parse($dados['saida_prevista']);
         $retorno = CarbonImmutable::parse($dados['retorno_previsto']);
 
-        $this->validar($veiculo, $motorista, $saida, $retorno, $solicitante);
-
         $avisos = array_filter([$motorista->avisoHabilitacao()]);
 
         $autoAprovada = $solicitante->temAlgumPerfil(...config('frota.alocacao.perfis_auto_aprovados', []));
 
         $alocacao = DB::transaction(function () use ($dados, $veiculo, $motorista, $solicitante, $autoAprovada, $saida, $retorno): Alocacao {
+            // Trava o veículo: duplo clique ou dois gestores no mesmo horário
+            // esperam aqui, e o segundo já enxerga a alocação do primeiro.
+            $this->travar($veiculo);
+            $this->validar($veiculo, $motorista, $saida, $retorno, $solicitante);
+
             $alocacao = Alocacao::create([
                 'veiculo_id' => $veiculo->id,
                 'motorista_id' => $motorista->id,
@@ -87,9 +90,12 @@ class AlocacaoService
         }
 
         $alocacao->load(['veiculo.condicoes', 'motorista']);
-        $this->validar($alocacao->veiculo, $alocacao->motorista, $alocacao->saida_prevista->toImmutable(), $alocacao->retorno_previsto->toImmutable(), $aprovador, $alocacao->id);
 
-        DB::transaction(fn () => $this->efetivarAprovacao($alocacao, $aprovador));
+        DB::transaction(function () use ($alocacao, $aprovador): void {
+            $this->travar($alocacao->veiculo);
+            $this->validar($alocacao->veiculo, $alocacao->motorista, $alocacao->saida_prevista->toImmutable(), $alocacao->retorno_previsto->toImmutable(), $aprovador, $alocacao->id);
+            $this->efetivarAprovacao($alocacao, $aprovador);
+        });
 
         $this->notificar->enviar([$alocacao->motorista], 'alocacao_aprovada', 'Alocação aprovada',
             "{$aprovador->nome} aprovou a alocação do veículo {$alocacao->veiculo->nome} em {$alocacao->saida_prevista->format('d/m H:i')}. Faça a checagem de saída antes de sair.",
@@ -202,6 +208,20 @@ class AlocacaoService
             });
             $this->notificar->enviar(collect([$alocacao->motorista, $alocacao->solicitante])->unique('id'), 'alocacao_expirada', 'Alocação expirada',
                 "A alocação do veículo {$alocacao->veiculo->nome} de {$alocacao->saida_prevista->format('d/m H:i')} expirou sem a checagem de saída.",
+                route('alocacoes.show', $alocacao, false));
+            $expiradas++;
+        }
+
+        // Pedido que ninguém aprovou antes de o período acabar.
+        $naoAprovadas = Alocacao::with(['veiculo', 'motorista', 'solicitante'])
+            ->where('situacao', SituacaoAlocacao::Solicitada->value)
+            ->where('retorno_previsto', '<', now())
+            ->get();
+
+        foreach ($naoAprovadas as $alocacao) {
+            $alocacao->update(['situacao' => SituacaoAlocacao::Cancelada->value, 'motivo_recusa' => 'Expirada: não foi aprovada dentro do período previsto.']);
+            $this->notificar->enviar(collect([$alocacao->motorista, $alocacao->solicitante])->unique('id'), 'alocacao_expirada', 'Solicitação expirada',
+                "A solicitação do veículo {$alocacao->veiculo->nome} de {$alocacao->saida_prevista->format('d/m H:i')} expirou sem aprovação.",
                 route('alocacoes.show', $alocacao, false));
             $expiradas++;
         }
@@ -327,10 +347,24 @@ class AlocacaoService
         }
     }
 
+    /** Trava a linha do veículo até o fim da transação e recarrega situação e condições. */
+    private function travar(Veiculo $veiculo): void
+    {
+        $atual = Veiculo::whereKey($veiculo->id)->lockForUpdate()->firstOrFail();
+        $veiculo->setRawAttributes($atual->getAttributes(), true);
+        $veiculo->load('condicoes');
+    }
+
     private function validar(Veiculo $veiculo, Usuario $motorista, CarbonImmutable $saida, CarbonImmutable $retorno, Usuario $quem, ?int $ignorarId = null): void
     {
         if ($retorno->lte($saida)) {
             throw new \DomainException('O retorno previsto precisa ser depois da saída.');
+        }
+
+        // Período já encerrado: a checagem de saída nunca seria possível, e a
+        // alocação só reservaria o carro até a rotina expirá-la.
+        if ($retorno->lte(now())) {
+            throw new \DomainException('O período desta alocação já terminou.');
         }
 
         if (! $motorista->ativo || ! $motorista->pode_dirigir) {

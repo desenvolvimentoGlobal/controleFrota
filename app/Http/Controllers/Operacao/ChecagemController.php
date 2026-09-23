@@ -18,6 +18,7 @@ use App\Services\ChecagemService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -137,6 +138,10 @@ class ChecagemController extends Controller
     /** Histórico de checagens de um veículo. */
     public function historico(Veiculo $veiculo): View
     {
+        // Lista motoristas e objetivos de todas as alocações do veículo: é de
+        // quem cuida da frota (as mesmas pessoas que veem qualquer foto).
+        Gate::authorize('frota.gerenciar');
+
         $checagens = Checagem::with(['motorista:id,nome', 'alocacao:id,objetivo'])
             ->where('veiculo_id', $veiculo->id)
             ->concluidas()

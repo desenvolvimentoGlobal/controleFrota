@@ -135,7 +135,7 @@ class ManutencaoController extends Controller
             return redirect()->route('manutencoes.show', $manutencao)->with('erro', 'Manutenção encerrada não pode ser editada.');
         }
 
-        return view('manutencoes.edit', ['manutencao' => $manutencao, 'ocorrencia' => null] + $this->opcoes());
+        return view('manutencoes.edit', ['manutencao' => $manutencao, 'ocorrencia' => null] + $this->opcoes($manutencao));
     }
 
     public function update(SalvarManutencaoRequest $request, Manutencao $manutencao): RedirectResponse
@@ -236,14 +236,31 @@ class ManutencaoController extends Controller
         return back()->with('sucesso', 'Anexo removido.');
     }
 
-    /** @return array<string, mixed> */
-    private function opcoes(): array
+    /**
+     * Na edição, o fornecedor e o responsável atuais entram na lista mesmo
+     * inativos: fora dela, o select voltaria vazio e salvar os apagaria.
+     *
+     * @return array<string, mixed>
+     */
+    private function opcoes(?Manutencao $manutencao = null): array
     {
+        $fornecedores = Fornecedor::ativos()->orderBy('razao_social')->get(['id', 'razao_social', 'nome_fantasia']);
+        if ($manutencao?->fornecedor_id && ! $fornecedores->contains('id', $manutencao->fornecedor_id)) {
+            $atual = Fornecedor::withTrashed()->find($manutencao->fornecedor_id, ['id', 'razao_social', 'nome_fantasia']);
+            $fornecedores = $atual ? $fornecedores->prepend($atual) : $fornecedores;
+        }
+
+        $responsaveis = Usuario::where('ativo', true)->whereHas('perfil', fn ($q) => $q->whereIn('codigo', ['admin', 'gestor']))->orderBy('nome')->get(['id', 'nome']);
+        if ($manutencao?->responsavel_id && ! $responsaveis->contains('id', $manutencao->responsavel_id)) {
+            $atual = Usuario::withTrashed()->find($manutencao->responsavel_id, ['id', 'nome']);
+            $responsaveis = $atual ? $responsaveis->prepend($atual) : $responsaveis;
+        }
+
         return [
             'tipos' => TipoManutencao::paraSelect(),
             'veiculos' => Veiculo::ativos()->orderBy('nome')->get(['id', 'nome', 'placa', 'situacao']),
-            'fornecedores' => Fornecedor::ativos()->orderBy('razao_social')->get(['id', 'razao_social', 'nome_fantasia']),
-            'responsaveis' => Usuario::where('ativo', true)->whereHas('perfil', fn ($q) => $q->whereIn('codigo', ['admin', 'gestor']))->orderBy('nome')->get(['id', 'nome']),
+            'fornecedores' => $fornecedores,
+            'responsaveis' => $responsaveis,
             'sistemasMecanicos' => config('frota.sistemas_mecanicos'),
         ];
     }

@@ -26,7 +26,9 @@
                 @endforeach
             </select>
             <div class="form-check form-check-sm small">
-                <input class="form-check-input" type="checkbox" name="baixados" id="baixados" value="1" @checked(request('baixados'))>
+                {{-- Desmarcado não é enviado: o 0 faz o filtro lembrado ser desligado. --}}
+                <input type="hidden" name="baixados" value="0">
+                <input class="form-check-input" type="checkbox" name="baixados" id="baixados" value="1" @checked(request()->boolean('baixados'))>
                 <label class="form-check-label" for="baixados">Incluir baixados</label>
             </div>
             <button class="btn btn-sm btn-outline-secondary" title="Filtrar"><i class="bi bi-search"></i></button>

@@ -14,6 +14,7 @@ use App\Models\Veiculo;
 use App\Services\VeiculoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -157,8 +158,10 @@ class VeiculoController extends Controller
         ], [], ['estado_atual' => 'estado físico', 'km_atual' => 'quilometragem', 'observacao' => 'motivo']);
 
         try {
-            $this->servico->mudarEstadoFisico($veiculo, CondicaoVeiculo::from($dados['estado_atual']), 'manual', null, $dados['observacao']);
-            $this->servico->atualizarKm($veiculo, (int) $dados['km_atual'], 'manual', null, $dados['observacao']);
+            DB::transaction(function () use ($veiculo, $dados): void {
+                $this->servico->mudarEstadoFisico($veiculo, CondicaoVeiculo::from($dados['estado_atual']), 'manual', null, $dados['observacao']);
+                $this->servico->atualizarKm($veiculo, (int) $dados['km_atual'], 'manual', null, $dados['observacao']);
+            });
         } catch (\DomainException $e) {
             return back()->with('erro', $e->getMessage());
         }

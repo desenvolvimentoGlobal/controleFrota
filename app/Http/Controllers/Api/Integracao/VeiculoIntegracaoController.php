@@ -108,7 +108,8 @@ class VeiculoIntegracaoController extends Controller
         $alocacoes = Alocacao::with(['veiculo:id,placa', 'motorista:id,nome'])
             ->whereIn('situacao', [...SituacaoAlocacao::ocupamAgenda(), SituacaoAlocacao::Concluida->value])
             ->where('saida_prevista', '<=', $ate)
-            ->where('retorno_previsto', '>=', $de)
+            // Em uso com retorno atrasado continua ocupando o carro até voltar.
+            ->where(fn ($q) => $q->where('retorno_previsto', '>=', $de)->orWhere('situacao', SituacaoAlocacao::EmUso->value))
             ->when($request->integer('veiculo_id'), fn ($q, $id) => $q->where('veiculo_id', $id))
             ->orderBy('saida_prevista')
             ->get();

@@ -233,6 +233,16 @@
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         </div>
+    @elseif($errors->any() && ! session('erro'))
+        {{-- Validação de formulário em modal (concluir manutenção, revisar
+             ocorrência, plano preventivo) não tem @error visível: sem isto a
+             página recarregava sem dizer o que faltou. --}}
+        <div class="toast text-bg-danger border-0" role="alert" data-bs-autohide="false">
+            <div class="d-flex">
+                <div class="toast-body"><i class="bi bi-x-circle me-1"></i> Não foi salvo: {{ $errors->first() }}@if($errors->count() > 1) (e mais {{ $errors->count() - 1 }} campo(s)).@endif</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
     @endif
 </div>
 

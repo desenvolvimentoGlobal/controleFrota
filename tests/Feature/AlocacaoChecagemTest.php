@@ -297,8 +297,10 @@ class AlocacaoChecagemTest extends TestCase
         // Preservadas: a foto da anomalia (retorno) e a de comparação (saída) do odômetro.
         $fotoOcorrencia = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'odometro')->where('checagem_id', $retorno->id))->firstOrFail();
         $fotoComparacao = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'odometro')->where('checagem_id', $saida->id))->firstOrFail();
-        $outra = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'lataria_frente')->where('checagem_id', $retorno->id))->firstOrFail();
+        $outra = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'lataria_frente')->where('checagem_id', $saida->id))->firstOrFail();
+        $referencia = ChecagemFoto::whereHas('item', fn ($q) => $q->where('item', 'lataria_frente')->where('checagem_id', $retorno->id))->firstOrFail();
         $this->assertNull($fotoComparacao->apagada_em, 'foto de comparação da ocorrência aberta é preservada');
+        $this->assertNull($referencia->apagada_em, 'a última checagem do veículo é a comparação do próximo motorista');
 
         $this->assertNull($fotoOcorrencia->apagada_em, 'foto da ocorrência aberta é preservada');
         $this->assertNotNull($outra->apagada_em);

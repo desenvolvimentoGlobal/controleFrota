@@ -108,7 +108,8 @@ class Veiculo extends Model
             if ($this->{$campo} === null) {
                 continue;
             }
-            if ($this->{$campo}->isPast()) {
+            // Validade é o último dia em que o documento vale.
+            if ($this->{$campo}->lt(today())) {
                 $avisos[] = "{$rotulo} vencido em ".$this->{$campo}->format('d/m/Y').'.';
             } elseif ($this->{$campo}->lte($limite)) {
                 $avisos[] = "{$rotulo} vence em ".$this->{$campo}->format('d/m/Y').'.';

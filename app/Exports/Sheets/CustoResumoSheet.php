@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Exports\Sheets;
 
+use App\Exports\Concerns\TextoSemFormula;
 use App\Support\Numero;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /** Aba de resumo: cabeçalho de contexto + tabela da visão escolhida. */
-class CustoResumoSheet implements FromArray, ShouldAutoSize, WithStyles, WithTitle
+class CustoResumoSheet implements FromArray, ShouldAutoSize, WithCustomValueBinder, WithStyles, WithTitle
 {
+    use TextoSemFormula;
+
     /** Linha do cabeçalho da tabela (depois das linhas de contexto). */
     private const LINHA_CABECALHO = 10;
 

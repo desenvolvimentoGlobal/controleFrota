@@ -124,8 +124,11 @@ class UsuarioController extends Controller
         }
 
         if ($request->boolean('remover_foto') || $request->hasFile('foto')) {
+            // Valida e grava a nova ANTES de apagar a antiga: foto recusada
+            // não pode deixar o usuário apontando para um arquivo apagado.
+            $novaFoto = $this->salvarFoto($request);
             $this->apagarFoto($usuario);
-            $dados['foto_path'] = $this->salvarFoto($request);
+            $dados['foto_path'] = $novaFoto;
         }
 
         $usuario->update($dados);
@@ -200,8 +203,10 @@ class UsuarioController extends Controller
             ->get(['id', 'nome']);
 
         $perfis = Perfil::orderBy('nome')
-            // Gestor não cria admin.
-            ->when(! $atual->ehAdmin(), fn ($q) => $q->where('codigo', '!=', 'admin'))
+            // Gestor dá só geral/gestor (mesma regra do SalvarUsuarioRequest),
+            // mantendo o perfil que a pessoa editada já tem.
+            ->when(! $atual->ehAdmin(), fn ($q) => $q->where(fn ($q2) => $q2->whereIn('codigo', ['geral', 'gestor'])
+                ->when($editando?->perfil_id, fn ($q3, $id) => $q3->orWhere('id', $id))))
             ->get();
 
         return [

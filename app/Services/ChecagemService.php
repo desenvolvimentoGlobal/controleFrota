@@ -16,6 +16,8 @@ use App\Models\ChecagemFoto;
 use App\Models\ChecagemItem;
 use App\Models\Ocorrencia;
 use App\Models\Usuario;
+use App\Models\Veiculo;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -65,6 +67,17 @@ class ChecagemService
             return $existente;
         }
 
+        try {
+            return $this->criarRascunho($alocacao, $motorista, $tipo);
+        } catch (UniqueConstraintViolationException) {
+            // Duplo toque em "Fazer checagem": a outra requisição criou o
+            // rascunho (unique alocacao_id + tipo) entre a busca e o insert.
+            return $alocacao->checagens()->where('tipo', $tipo->value)->firstOrFail();
+        }
+    }
+
+    private function criarRascunho(Alocacao $alocacao, Usuario $motorista, TipoChecagem $tipo): Checagem
+    {
         return DB::transaction(function () use ($alocacao, $motorista, $tipo): Checagem {
             $anterior = $this->ultimaChecagemConcluida($alocacao->veiculo_id);
 
@@ -156,28 +169,28 @@ class ChecagemService
         }
 
         $alocacao = $checagem->alocacao;
-        $veiculo = $alocacao->veiculo;
-
-        // O veículo pode ter ido para a oficina entre abrir e concluir o rascunho.
-        if ($checagem->tipo === TipoChecagem::Saida) {
-            $this->garantirVeiculoLiberadoParaSair($alocacao);
-        }
-
         $km = (int) $dados['km_informado'];
         $estado = CondicaoVeiculo::from($dados['estado_geral']);
 
-        $kmMinimo = $checagem->tipo === TipoChecagem::Retorno ? ($alocacao->km_saida ?? $veiculo->km_atual) : $veiculo->km_atual;
-        if ($km < $kmMinimo) {
-            throw new \DomainException("A quilometragem informada ({$km}) é menor que a registrada ({$kmMinimo}).");
-        }
-
-        return DB::transaction(function () use ($checagem, $alocacao, $veiculo, $km, $estado, $dados, $quem): Checagem {
+        return DB::transaction(function () use ($checagem, $alocacao, $km, $estado, $dados, $quem): Checagem {
             // Duplo toque em "Concluir" no celular: a segunda requisição espera
             // a primeira e encontra a checagem já concluída.
             $travada = Checagem::whereKey($checagem->id)->lockForUpdate()->firstOrFail();
             if ($travada->concluida()) {
                 throw new \DomainException('Esta checagem já foi concluída.');
             }
+
+            // Trava o veículo: duas saídas simultâneas de alocações diferentes
+            // do mesmo carro não podem passar juntas pela verificação abaixo.
+            $veiculo = Veiculo::with('condicoes')->whereKey($alocacao->veiculo_id)->lockForUpdate()->firstOrFail();
+            $alocacao->setRelation('veiculo', $veiculo);
+
+            // O veículo pode ter ido para a oficina entre abrir e concluir o rascunho.
+            if ($checagem->tipo === TipoChecagem::Saida) {
+                $this->garantirVeiculoLiberadoParaSair($alocacao, $veiculo);
+            }
+
+            $this->validarKm($checagem, $alocacao, $veiculo, $km);
 
             $checagem->update([
                 'km_informado' => $km,
@@ -237,8 +250,14 @@ class ChecagemService
     {
         $limite = now()->subMonths((int) config('frota.checagem.retencao_meses', 6));
 
+        // A última checagem de cada veículo é a foto de comparação do próximo
+        // motorista: um carro parado há mais de 6 meses não pode perdê-la.
+        $referencias = Checagem::concluidas()->distinct()->pluck('veiculo_id')
+            ->map(fn (int $veiculoId) => $this->ultimaChecagemConcluida($veiculoId)?->id)
+            ->filter()->values()->all();
+
         $fotos = ChecagemFoto::whereNull('apagada_em')
-            ->whereHas('item.checagem', fn ($q) => $q->concluidas()->where('concluida_em', '<', $limite))
+            ->whereHas('item.checagem', fn ($q) => $q->concluidas()->where('concluida_em', '<', $limite)->whereKeyNot($referencias))
             // Preserva evidência de ocorrência ainda relevante.
             ->whereDoesntHave('item.ocorrencia', fn ($q) => $q->whereIn('situacao', [SituacaoOcorrencia::Aberta->value, SituacaoOcorrencia::Confirmada->value]))
             ->whereDoesntHave('item', fn ($q) => $q->whereHas('ocorrenciaComoAnterior', fn ($o) => $o->whereIn('situacao', [SituacaoOcorrencia::Aberta->value, SituacaoOcorrencia::Confirmada->value])))
@@ -307,9 +326,9 @@ class ChecagemService
      * sistema crítico. Em uso aqui significa que outra pessoa ainda não
      * devolveu — sair agora poria o carro "em uso" duas vezes.
      */
-    private function garantirVeiculoLiberadoParaSair(Alocacao $alocacao): void
+    private function garantirVeiculoLiberadoParaSair(Alocacao $alocacao, ?Veiculo $veiculo = null): void
     {
-        $veiculo = $alocacao->veiculo()->with('condicoes')->firstOrFail();
+        $veiculo ??= $alocacao->veiculo()->with('condicoes')->firstOrFail();
 
         if (! in_array($veiculo->situacao, [SituacaoVeiculo::Disponivel, SituacaoVeiculo::Reservado], true)) {
             $motivo = $veiculo->situacao === SituacaoVeiculo::EmUso
@@ -331,6 +350,45 @@ class ChecagemService
         if (now()->gte($alocacao->retorno_previsto)) {
             throw new \DomainException('O período desta alocação já terminou. Faça uma nova solicitação.');
         }
+
+        // Sair antes do horário previsto só se ninguém tiver o carro nesse
+        // intervalo: "reservado" pode ser de outra alocação do mesmo dia.
+        if (now()->lt($alocacao->saida_prevista)) {
+            $antes = Alocacao::conflitantes($alocacao->veiculo_id, now(), $alocacao->saida_prevista, $alocacao->id)
+                ->with('motorista:id,nome')->orderBy('saida_prevista')->first();
+            if ($antes) {
+                throw new \DomainException(
+                    "O veículo está reservado para {$antes->motorista->nome} até {$antes->retorno_previsto->format('d/m H:i')}. "
+                    ."A sua saída pode ser feita a partir de {$alocacao->saida_prevista->format('d/m H:i')}."
+                );
+            }
+        }
+    }
+
+    /**
+     * Km informado na checagem. Na saída, o carro estava parado desde a última
+     * devolução: um salto grande é quase sempre dígito a mais, e gravá-lo
+     * travaria todas as checagens seguintes (o km não volta pela checagem).
+     */
+    private function validarKm(Checagem $checagem, Alocacao $alocacao, Veiculo $veiculo, int $km): void
+    {
+        $kmMinimo = $checagem->tipo === TipoChecagem::Retorno ? (int) ($alocacao->km_saida ?? $veiculo->km_atual) : $veiculo->km_atual;
+        if ($km < $kmMinimo) {
+            throw new \DomainException("A quilometragem informada ({$km}) é menor que a registrada ({$kmMinimo}).");
+        }
+
+        $tolerancia = (int) config('frota.checagem.km_tolerancia_saida', 500);
+        if ($checagem->tipo === TipoChecagem::Saida && $km - $veiculo->km_atual > $tolerancia) {
+            throw new \DomainException(
+                "A quilometragem informada ({$km}) está {$this->kmFormatado($km - $veiculo->km_atual)} km acima da última registrada ({$veiculo->km_atual}). "
+                .'Confira o painel; se estiver certa, peça ao gestor para ajustar o km do veículo antes da saída.'
+            );
+        }
+    }
+
+    private function kmFormatado(int $km): string
+    {
+        return number_format($km, 0, ',', '.');
     }
 
     private function garantirRascunho(Checagem $checagem, Usuario $quem): void

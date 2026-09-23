@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Exports\Sheets;
 
+use App\Exports\Concerns\TextoSemFormula;
 use App\Models\Manutencao;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /** Aba de detalhe: uma linha por manutenção, pronta para filtro e tabela dinâmica. */
-class CustoManutencoesSheet implements FromArray, ShouldAutoSize, WithStyles, WithTitle
+class CustoManutencoesSheet implements FromArray, ShouldAutoSize, WithCustomValueBinder, WithStyles, WithTitle
 {
+    use TextoSemFormula;
+
     /** @param  array<string, mixed>  $dados */
     public function __construct(private readonly array $dados) {}
 

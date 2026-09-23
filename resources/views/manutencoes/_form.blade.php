@@ -30,7 +30,7 @@
         <label class="form-label gc-required">Tipo</label>
         <select name="tipo" class="form-select @error('tipo') is-invalid @enderror" required>
             @foreach($tipos as $v => $r)
-                <option value="{{ $v }}" @selected(($manutencao?->tipo?->value ?? old('tipo', $prefill['tipo'] ?? '')) === $v)>{{ $r }}</option>
+                <option value="{{ $v }}" @selected(old('tipo', $manutencao?->tipo?->value ?? ($prefill['tipo'] ?? '')) === $v)>{{ $r }}</option>
             @endforeach
         </select>
         @error('tipo') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -79,14 +79,14 @@
         <select name="responsavel_id" class="form-select @error('responsavel_id') is-invalid @enderror">
             <option value="">—</option>
             @foreach($responsaveis as $r)
-                <option value="{{ $r->id }}" @selected((string) $val('responsavel_id', auth()->id()) === (string) $r->id)>{{ $r->nome }}</option>
+                <option value="{{ $r->id }}" @selected((string) $val('responsavel_id', $manutencao ? null : auth()->id()) === (string) $r->id)>{{ $r->nome }}</option>
             @endforeach
         </select>
         @error('responsavel_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
     <div class="col-md-8">
         <label class="form-label">Sistemas mecânicos tratados</label>
-        @php($marcados = (array) old('sistemas', $manutencao?->sistemas ?? ($prefill['sistemas'] ?? [])))
+        @php($marcados = session()->hasOldInput() ? (array) old('sistemas', []) : ($manutencao?->sistemas ?? ($prefill['sistemas'] ?? [])))
         <div class="row g-1">
             @foreach($sistemasMecanicos as $chave => $rotulo)
                 <div class="col-6 col-lg-4">
@@ -108,7 +108,7 @@
     @unless($manutencao)
         <div class="col-12">
             <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" name="bloquear_veiculo" id="bloquear_veiculo" value="1" @checked(old('bloquear_veiculo', ($prefill['tipo'] ?? '') === 'imediata'))>
+                <input class="form-check-input" type="checkbox" name="bloquear_veiculo" id="bloquear_veiculo" value="1" @checked(session()->hasOldInput() ? old('bloquear_veiculo') : (($prefill['tipo'] ?? '') === 'imediata'))>
                 <label class="form-check-label" for="bloquear_veiculo">Bloquear o veículo agora (indisponível até a conclusão)</label>
             </div>
             <div class="form-text">Use para defeito que impede o uso. Sem bloqueio, o veículo só para quando a prestação começar.</div>

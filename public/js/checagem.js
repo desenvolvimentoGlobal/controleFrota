@@ -18,7 +18,8 @@
 
     async function comprimir(arquivo) {
         if (!arquivo.type.startsWith('image/')) return arquivo;
-        const bitmap = await createImageBitmap(arquivo).catch(() => null);
+        // from-image: respeita a rotação do EXIF (foto do celular em pé).
+        const bitmap = await createImageBitmap(arquivo, { imageOrientation: 'from-image' }).catch(() => null);
         if (!bitmap) return arquivo;
 
         const max = 1600;
@@ -42,6 +43,8 @@
         const badge = card.querySelector('.chk-badge');
         const botoes = card.querySelectorAll('.chk-resposta');
         let arquivo = null;
+        let enviando = false;
+        let reenviar = false;
         let resposta = card.querySelector('.chk-resposta.btn-success') ? 'conforme' : (card.querySelector('.chk-resposta.btn-danger') ? 'anomalia' : null);
 
         input.addEventListener('change', async () => {
@@ -73,6 +76,11 @@
             if (!arquivo && preview.classList.contains('d-none')) { mostrarErro('Tire a foto primeiro.'); return; }
             if (resposta === 'anomalia' && !observacao.value.trim()) { mostrarErro('Descreva a anomalia.'); return; }
 
+            // Toque durante o upload: não manda a mesma foto duas vezes; ao
+            // terminar, reenvia uma vez com a resposta mais recente.
+            if (enviando) { reenviar = true; return; }
+            enviando = true;
+
             // Sem arquivo novo, a foto já enviada fica e só a resposta muda.
             const dados = new FormData();
             if (arquivo) dados.append('foto', arquivo);
@@ -87,10 +95,13 @@
                     headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: dados,
                 });
-                const json = await resp.json();
+                // Resposta que não é JSON (ex.: 413 do proxy) não é "sem conexão".
+                const json = await resp.json().catch(() => ({}));
                 if (!resp.ok || !json.ok) {
-                    const msg = json.erro || (json.errors ? Object.values(json.errors).flat().join(' ') : 'Falha ao enviar.');
-                    mostrarErro(msg);
+                    let msg = json.erro || (json.errors ? Object.values(json.errors).flat().join(' ') : null);
+                    if (!msg && resp.status === 419) msg = 'Sua sessão expirou. Recarregue a página e entre de novo.';
+                    if (!msg && resp.status === 413) msg = 'A foto é grande demais. Tire outra ou reduza a resolução da câmera.';
+                    mostrarErro(msg || `Falha ao enviar (erro ${resp.status}).`);
                     return;
                 }
                 arquivo = null;
@@ -103,6 +114,8 @@
                 mostrarErro('Sem conexão. Tente novamente.');
             } finally {
                 status.classList.add('d-none');
+                enviando = false;
+                if (reenviar) { reenviar = false; enviar(); }
             }
         }
 

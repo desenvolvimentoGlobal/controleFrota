@@ -52,7 +52,9 @@ trait FiltrosPersistentes
             return null;
         }
 
-        return $lembrados !== [] ? redirect()->route($rota, $lembrados) : null;
+        // Parâmetros que não são filtro (ex.: ?editar=5 dos cadastros simples)
+        // seguem junto, senão o redirecionamento os perderia.
+        return $lembrados !== [] ? redirect()->route($rota, $lembrados + $request->query()) : null;
     }
 
     /**

@@ -7,14 +7,19 @@ namespace App\Support;
 /** Conversão e formatação de números no padrão pt-BR. */
 final class Numero
 {
-    /** "12.345,67" → "12345.67"; "12345.67" fica; vazio → null. */
+    /**
+     * "12.345,67" → "12345.67"; "1.500" → "1500" (milhar, como o usuário
+     * digita); "1500.5" e "12345.67" ficam (ponto com 1–2 casas é decimal,
+     * vindo de input numérico); "R$ 10" → "10"; vazio → null.
+     */
     public static function dePtBr(mixed $valor): ?string
     {
-        $texto = trim((string) $valor);
+        $texto = preg_replace('/^R\$\s*/i', '', trim((string) $valor));
+        $texto = str_replace(' ', '', (string) $texto);
         if ($texto === '') {
             return null;
         }
-        if (preg_match('/^-?\d+(\.\d+)?$/', $texto)) {
+        if (preg_match('/^-?\d+(\.\d{1,2})?$/', $texto)) {
             return $texto;
         }
 

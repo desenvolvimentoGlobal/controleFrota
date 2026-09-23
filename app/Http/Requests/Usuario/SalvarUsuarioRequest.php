@@ -52,10 +52,17 @@ class SalvarUsuarioRequest extends FormRequest
         // Quem não é admin não promove ninguém a admin e só pendura a pessoa
         // em alguém da própria cadeia. O formulário já esconde essas opções,
         // mas a regra vale no servidor: um POST montado à mão não passa.
+        // O gestor dá só perfis que ele mesmo tem ou abaixo (geral, gestor):
+        // "financeiro" abriria os custos da frota inteira. O perfil que a
+        // pessoa já tem (dado por um admin) pode ser mantido.
         $perfisPermitidos = Perfil::query()
-            ->when(! $atual->ehAdmin(), fn ($q) => $q->where('codigo', '!=', 'admin'))
+            ->when(! $atual->ehAdmin(), fn ($q) => $q->where(fn ($q2) => $q2->whereIn('codigo', ['geral', 'gestor'])
+                ->when($usuario?->perfil_id, fn ($q3, $id) => $q3->orWhere('id', $id))))
             ->pluck('id')->all();
         $gestoresPermitidos = $atual->ehAdmin() ? null : [$atual->id, ...$atual->idsDaEquipe()];
+        // Gestor direto precisa poder aprovar: quem recebe "aguardando
+        // aprovação" e aloca para a equipe é gestor ou admin.
+        $perfisQueGerem = Perfil::whereIn('codigo', ['admin', 'gestor'])->pluck('id')->all();
 
         return [
             'nome' => ['required', 'string', 'max:255'],
@@ -67,7 +74,7 @@ class SalvarUsuarioRequest extends FormRequest
             'setor_id' => ['nullable', 'exists:setores,id'],
             'cargo_id' => ['nullable', 'exists:cargos,id'],
             'gestor_id' => array_values(array_filter([
-                'nullable', 'exists:usuarios,id',
+                'nullable', Rule::exists('usuarios', 'id')->whereIn('perfil_id', $perfisQueGerem)->whereNull('deleted_at'),
                 $usuario ? Rule::notIn([$usuario->id, ...$usuario->idsDaEquipe()]) : null,
                 $gestoresPermitidos !== null ? Rule::in($gestoresPermitidos) : null,
             ])),
@@ -116,6 +123,7 @@ class SalvarUsuarioRequest extends FormRequest
             'gestor_id.not_in' => 'O gestor não pode ser o próprio usuário nem alguém da equipe dele (criaria um ciclo).',
             'gestor_id.in' => 'Escolha como gestor você ou alguém da sua equipe.',
             'perfil_id.in' => 'Você não pode atribuir este perfil.',
+            'gestor_id.exists' => 'O gestor escolhido precisa ter perfil de gestor ou administrador.',
             'colaborador_externo_id.unique' => 'Esta ficha do Gestão de Pessoas já está vinculada a outro usuário.',
         ];
     }

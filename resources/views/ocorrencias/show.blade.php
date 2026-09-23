@@ -31,7 +31,7 @@
                         </div>
                     </div>
                     <p class="mb-1"><strong>Descrição:</strong> {{ $ocorrencia->descricao }}</p>
-                    <p class="small text-muted mb-0">Apontada por {{ $ocorrencia->apontadaPor->nome }} em {{ $ocorrencia->created_at->format('d/m/Y H:i') }}, na checagem de {{ $ocorrencia->item->checagem->tipo->rotulo() }} da <a href="{{ route('alocacoes.show', $ocorrencia->item->checagem->alocacao) }}">alocação #{{ $ocorrencia->item->checagem->alocacao_id }}</a>.</p>
+                    <p class="small text-muted mb-0">Apontada por {{ $ocorrencia->apontadaPor->nome }} em {{ $ocorrencia->created_at->format('d/m/Y H:i') }}, na checagem de {{ $ocorrencia->item->checagem->tipo->rotulo() }} da @can('view', $ocorrencia->item->checagem->alocacao)<a href="{{ route('alocacoes.show', $ocorrencia->item->checagem->alocacao) }}">alocação #{{ $ocorrencia->item->checagem->alocacao_id }}</a>@else alocação #{{ $ocorrencia->item->checagem->alocacao_id }}@endcan.</p>
                 </div>
             </div>
 
@@ -56,7 +56,7 @@
                 <div class="card-body small">
                     @if($ocorrencia->alocacaoResponsavel)
                         <strong>{{ $ocorrencia->alocacaoResponsavel->motorista->nome }}</strong><br>
-                        <a href="{{ route('alocacoes.show', $ocorrencia->alocacaoResponsavel) }}">Alocação #{{ $ocorrencia->alocacaoResponsavel->id }}</a> · {{ $ocorrencia->alocacaoResponsavel->objetivo }}<br>
+                        @can('view', $ocorrencia->alocacaoResponsavel)<a href="{{ route('alocacoes.show', $ocorrencia->alocacaoResponsavel) }}">Alocação #{{ $ocorrencia->alocacaoResponsavel->id }}</a>@else Alocação #{{ $ocorrencia->alocacaoResponsavel->id }}@endcan · {{ $ocorrencia->alocacaoResponsavel->objetivo }}<br>
                         <span class="text-muted">{{ $ocorrencia->alocacaoResponsavel->saida_real?->format('d/m H:i') }} → {{ $ocorrencia->alocacaoResponsavel->retorno_real?->format('d/m H:i') }}</span>
                     @else
                         <span class="text-muted">Sem alocação anterior: não há responsável presumido.</span>

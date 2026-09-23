@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Middleware\AutenticarIntegracao;
 use App\Http\Middleware\ExigirTrocaDeSenha;
 use App\Http\Middleware\GarantirUsuarioAtivo;
+use App\Http\Middleware\SessaoInvalidadaPelaSenha;
 use App\Http\Middleware\VerificarPerfil;
 use App\Support\RespostaApi;
 use Illuminate\Foundation\Application;
@@ -36,11 +37,17 @@ return Application::configure(basePath: dirname(__DIR__))
         // container NÃO publica portas (premissa do template-projeto).
         $middleware->trustProxies(at: '*');
 
+        // Trocar ou redefinir a senha derruba as OUTRAS sessões e o cookie
+        // "lembrar" daquele usuário (conta comprometida não continua dentro).
+        $middleware->web(append: [SessaoInvalidadaPelaSenha::class]);
+
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn (Request $request) => route($request->user()->rotaDashboard()));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*'));
+        // api/* sempre JSON; nas telas, o fetch que pede JSON (checagem por
+        // foto) também recebe 422/419 em JSON, e não um redirect para HTML.
+        $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
         // Qualquer erro em api/* sai no envelope {sucesso:false, erro} dos
         // irmãos, sem stack trace nem mensagem interna (mesmo com APP_DEBUG).

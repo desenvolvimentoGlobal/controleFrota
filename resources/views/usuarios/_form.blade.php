@@ -47,7 +47,7 @@
 
     <div class="col-12">
         <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="deve_trocar_senha" id="deve_trocar_senha" value="1" @checked(old('deve_trocar_senha', $usuario->deve_trocar_senha ?? ! $usuario))>
+            <input class="form-check-input" type="checkbox" name="deve_trocar_senha" id="deve_trocar_senha" value="1" @checked(session()->hasOldInput() ? old('deve_trocar_senha') : ($usuario->deve_trocar_senha ?? ! $usuario))>
             <label class="form-check-label" for="deve_trocar_senha">Exigir troca de senha no próximo acesso</label>
         </div>
     </div>
@@ -114,7 +114,7 @@
 
     <div class="col-12">
         <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="pode_dirigir" id="pode_dirigir" value="1" @checked(old('pode_dirigir', $usuario->pode_dirigir ?? false))>
+            <input class="form-check-input" type="checkbox" name="pode_dirigir" id="pode_dirigir" value="1" @checked(session()->hasOldInput() ? old('pode_dirigir') : ($usuario->pode_dirigir ?? false))>
             <label class="form-check-label" for="pode_dirigir">Pode dirigir veículos da frota</label>
         </div>
         <div class="form-text">A CNH não é obrigatória para alocar. Sem CNH ou com CNH vencida, o sistema apenas avisa.</div>
@@ -221,7 +221,7 @@
     @if($usuario)
         <div class="col-12 mt-4">
             <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" name="ativo" id="ativo" value="1" @checked(old('ativo', $usuario->ativo))>
+                <input class="form-check-input" type="checkbox" name="ativo" id="ativo" value="1" @checked(session()->hasOldInput() ? old('ativo') : $usuario->ativo)>
                 <label class="form-check-label" for="ativo">Usuário ativo</label>
             </div>
         </div>

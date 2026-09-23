@@ -89,7 +89,7 @@ class VeiculoCrudTest extends TestCase
         $this->actingAs($geral)->put(route('veiculos.condicoes', $veiculo), ['condicoes' => []])->assertForbidden();
     }
 
-    public function test_condicao_critica_bloqueia_alocacao_e_km_nao_diminui(): void
+    public function test_condicao_critica_bloqueia_alocacao_e_correcao_manual_de_km(): void
     {
         $admin = $this->usuario('admin');
         $this->actingAs($admin)->post(route('veiculos.store'), $this->dados());
@@ -103,11 +103,16 @@ class VeiculoCrudTest extends TestCase
         $this->assertTrue($veiculo->temCondicaoCritica());
         $this->assertNotEmpty($veiculo->impedimentosParaAlocar());
 
+        // Correção manual pode baixar o km (dígito a mais numa checagem),
+        // com o motivo no histórico.
         $this->actingAs($admin)->from(route('veiculos.show', $veiculo))
-            ->patch(route('veiculos.estado', $veiculo), ['estado_atual' => 'regular', 'km_atual' => 500, 'observacao' => 'teste'])
-            ->assertSessionHas('erro');
+            ->patch(route('veiculos.estado', $veiculo), ['estado_atual' => 'regular', 'km_atual' => 500, 'observacao' => 'Km digitado errado'])
+            ->assertSessionHas('sucesso');
 
-        $this->assertSame(1000, $veiculo->fresh()->km_atual);
+        $this->assertSame(500, $veiculo->fresh()->km_atual);
+        $this->assertDatabaseHas('veiculo_historico_estados', [
+            'veiculo_id' => $veiculo->id, 'campo' => 'km_atual', 'valor_anterior' => '1000', 'valor_novo' => '500', 'origem' => 'manual',
+        ]);
     }
 
     public function test_mudanca_manual_de_situacao_gera_historico_e_baixado_so_volta_disponivel(): void

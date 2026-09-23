@@ -195,7 +195,8 @@ class Usuario extends Authenticatable
 
     public function cnhVencida(): bool
     {
-        return $this->cnh_validade !== null && $this->cnh_validade->isPast();
+        // Validade é o último dia em que a CNH vale.
+        return $this->cnh_validade !== null && $this->cnh_validade->lt(today());
     }
 
     /** Aviso (não bloqueio) exibido ao alocar: sem CNH ou CNH vencida. */

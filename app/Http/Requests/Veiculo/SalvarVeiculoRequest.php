@@ -38,8 +38,9 @@ class SalvarVeiculoRequest extends FormRequest
 
         $regras = [
             'nome' => ['required', 'string', 'max:80'],
-            'placa' => ['required', new Placa, Rule::unique('veiculos', 'placa')->ignore($veiculo)],
-            'chassi' => ['nullable', 'string', 'size:17', Rule::unique('veiculos', 'chassi')->ignore($veiculo)],
+            // Únicos só entre os não excluídos: veículo excluído não prende a placa.
+            'placa' => ['required', new Placa, Rule::unique('veiculos', 'placa')->ignore($veiculo)->withoutTrashed()],
+            'chassi' => ['nullable', 'string', 'size:17', Rule::unique('veiculos', 'chassi')->ignore($veiculo)->withoutTrashed()],
             'renavam' => ['nullable', 'digits_between:9,11'],
 
             'marca' => ['required', 'string', 'max:60'],

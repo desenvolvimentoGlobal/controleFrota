@@ -72,6 +72,11 @@ return [
         // preservando as ligadas a ocorrências abertas/confirmadas).
         'foto_max_kb' => 4096,
         'retencao_meses' => 6,
+
+        // Salto máximo de km aceito na checagem de saída em relação ao último
+        // km registrado (o carro estava parado). Acima disso é erro de digitação
+        // ou o gestor ajusta o km do veículo antes.
+        'km_tolerancia_saida' => 500,
     ],
 
     /*
@@ -98,6 +103,8 @@ return [
     'manutencao' => [
         'antecedencia_km' => 500,
         'antecedencia_dias' => 7,
+        // Preventiva do plano cancelada: não reabre antes deste prazo.
+        'reabrir_cancelada_dias' => 30,
         'anexo_max_kb' => 10240,
     ],
 

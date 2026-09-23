@@ -16,6 +16,7 @@ use App\Models\Ocorrencia;
 use App\Models\PlanoManutencao;
 use App\Models\Usuario;
 use App\Models\Veiculo;
+use App\Models\VeiculoHistoricoEstado;
 use App\Support\Numero;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -74,6 +75,16 @@ class ManutencaoService
         }
 
         $bloquear = (bool) ($dados['bloquear_veiculo'] ?? false);
+
+        // Preventiva aberta à mão para um plano vencido: liga ao plano, senão
+        // a rotina das 06:30 abre outra igual e a conclusão não o atualiza.
+        if (empty($dados['plano_manutencao_id']) && ($dados['tipo'] ?? null) === TipoManutencao::Preventiva->value) {
+            $vencidos = PlanoManutencao::where('veiculo_id', $veiculo->id)->where('ativo', true)->get()
+                ->filter(fn (PlanoManutencao $p) => $p->vencido($veiculo->km_atual) && ! $p->temManutencaoAberta());
+            if ($vencidos->count() === 1) {
+                $dados['plano_manutencao_id'] = $vencidos->first()->id;
+            }
+        }
 
         $manutencao = DB::transaction(function () use ($dados, $veiculo, $quem, $ocorrencia, $bloquear): Manutencao {
             $manutencao = Manutencao::create([
@@ -335,6 +346,13 @@ class ManutencaoService
                 continue;
             }
 
+            // Cancelada há pouco: alguém decidiu adiar. Reabrir todo dia só
+            // geraria ruído; volta a abrir passado o prazo.
+            $dias = (int) config('frota.manutencao.reabrir_cancelada_dias', 30);
+            if ($plano->manutencoes()->where('situacao', SituacaoManutencao::Cancelada->value)->where('updated_at', '>=', now()->subDays($dias))->exists()) {
+                continue;
+            }
+
             $motivo = array_filter([
                 $plano->proximoKm() !== null ? 'previsto em '.Numero::km($plano->proximoKm()).' (atual '.Numero::km($plano->veiculo->km_atual).')' : null,
                 $plano->proximaData() !== null ? 'previsto para '.$plano->proximaData()->format('d/m/Y') : null,
@@ -370,13 +388,19 @@ class ManutencaoService
         // (alocação aprovada saindo hoje) ou disponível.
         $livre = app(AlocacaoService::class)->situacaoLivre($veiculo, null, $manutencao->id);
 
-        // Estava indisponível por decisão do gestor antes da oficina: volta assim.
-        $indisponivelManual = $manutencao->situacao_antes_prestacao === SituacaoVeiculo::Indisponivel->value && ! $manutencao->bloqueou_veiculo;
+        // Estava indisponível por decisão do gestor antes da oficina: volta
+        // assim. Vale a última mudança de situação feita FORA das manutenções
+        // (o bloqueio e o "em manutenção" são delas e não contam).
+        $ultimaForaDaOficina = VeiculoHistoricoEstado::where('veiculo_id', $veiculo->id)
+            ->where('campo', 'situacao')->where('origem', '!=', 'manutencao')
+            ->latest('id')->first();
+        $indisponivelManual = $ultimaForaDaOficina?->origem === 'manual'
+            && $ultimaForaDaOficina->valor_novo === SituacaoVeiculo::Indisponivel->value;
 
         if ($veiculo->situacao === SituacaoVeiculo::EmManutencao && ! $outrasEmPrestacao) {
             $destino = ($outrasBloqueando || $indisponivelManual) ? SituacaoVeiculo::Indisponivel : $livre;
             $this->veiculos->mudarSituacao($veiculo, $destino, 'manutencao', $manutencao->id, $motivo);
-        } elseif ($veiculo->situacao === SituacaoVeiculo::Indisponivel && $manutencao->bloqueou_veiculo && ! $outrasBloqueando && ! $outrasEmPrestacao) {
+        } elseif ($veiculo->situacao === SituacaoVeiculo::Indisponivel && $manutencao->bloqueou_veiculo && ! $outrasBloqueando && ! $outrasEmPrestacao && ! $indisponivelManual) {
             $this->veiculos->mudarSituacao($veiculo, $livre, 'manutencao', $manutencao->id, $motivo);
         }
     }

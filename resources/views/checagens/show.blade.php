@@ -14,7 +14,9 @@
             <div class="col-md-6 text-md-end text-muted">
                 @if($checagem->anterior)
                     Comparada com a checagem de {{ $checagem->anterior->tipo->rotulo() }} de <strong>{{ $checagem->anterior->motorista->nome }}</strong> em {{ $checagem->anterior->concluida_em->format('d/m/Y H:i') }}
-                    <div><a href="{{ route('checagens.show', $checagem->anterior) }}">ver checagem anterior</a></div>
+                    @can('view', $checagem->anterior->alocacao)
+                        <div><a href="{{ route('checagens.show', $checagem->anterior) }}">ver checagem anterior</a></div>
+                    @endcan
                 @else
                     Primeira checagem do veículo (referência inicial).
                 @endif

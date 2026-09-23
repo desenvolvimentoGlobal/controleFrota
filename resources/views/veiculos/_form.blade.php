@@ -98,7 +98,7 @@
             @foreach($conforto as $campo => $rotulo)
                 <div class="col-6">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="{{ $campo }}" id="{{ $campo }}" value="1" @checked(old($campo, $veiculo?->{$campo} ?? false))>
+                        <input class="form-check-input" type="checkbox" name="{{ $campo }}" id="{{ $campo }}" value="1" @checked(session()->hasOldInput() ? old($campo) : ($veiculo?->{$campo} ?? false))>
                         <label class="form-check-label small" for="{{ $campo }}">{{ $rotulo }}</label>
                     </div>
                 </div>
@@ -113,7 +113,7 @@
             @foreach($seguranca as $campo => $rotulo)
                 <div class="col-6">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="{{ $campo }}" id="{{ $campo }}" value="1" @checked(old($campo, $veiculo?->{$campo} ?? false))>
+                        <input class="form-check-input" type="checkbox" name="{{ $campo }}" id="{{ $campo }}" value="1" @checked(session()->hasOldInput() ? old($campo) : ($veiculo?->{$campo} ?? false))>
                         <label class="form-check-label small" for="{{ $campo }}">{{ $rotulo }}</label>
                     </div>
                 </div>

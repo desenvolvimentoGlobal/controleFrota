@@ -39,7 +39,9 @@
                         <div class="text-muted">Estado inicial: {{ $veiculo->estado_inicial->rotulo() }}</div>
                     </div>
                     <div class="d-flex gap-2 mt-3 flex-wrap">
-                        <a href="{{ route('checagens.historico', $veiculo) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-camera"></i> Checagens</a>
+                        @can('frota.gerenciar')
+                            <a href="{{ route('checagens.historico', $veiculo) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-camera"></i> Checagens</a>
+                        @endcan
                         <a href="{{ route('alocacoes.index', ['veiculo_id' => $veiculo->id]) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-calendar-check"></i> Alocações</a>
                         @if($veiculo->situacao->podeSerAlocado() && ! $veiculo->temCondicaoCritica())
                             <a href="{{ route('alocacoes.create', ['veiculo_id' => $veiculo->id]) }}" class="btn btn-sm btn-gc-primary"><i class="bi bi-plus-lg"></i> Alocar</a>
@@ -309,7 +311,8 @@
                             </div>
                             <div class="col-6">
                                 <label class="form-label gc-required">Km atual</label>
-                                <input type="number" name="km_atual" value="{{ $veiculo->km_atual }}" min="{{ $veiculo->km_atual }}" class="form-control" required>
+                                <input type="number" name="km_atual" value="{{ $veiculo->km_atual }}" min="0" class="form-control" required>
+                                <div class="form-text">Pode ser menor que o atual para corrigir um km digitado errado; o motivo fica no histórico.</div>
                             </div>
                             <div class="col-12">
                                 <label class="form-label gc-required">Motivo</label>

@@ -39,7 +39,7 @@
     @if($fornecedor)
         <div class="col-12">
             <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" name="ativo" id="ativo" value="1" @checked(old('ativo', $fornecedor->ativo))>
+                <input class="form-check-input" type="checkbox" name="ativo" id="ativo" value="1" @checked(session()->hasOldInput() ? old('ativo') : $fornecedor->ativo)>
                 <label class="form-check-label" for="ativo">Fornecedor ativo</label>
             </div>
         </div>

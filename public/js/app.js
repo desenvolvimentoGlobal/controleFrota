@@ -225,6 +225,30 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }, true);
 
+  // ---------- Duplo clique em formulário POST ----------
+  // O segundo envio do mesmo formulário (clique duplo, toque repetido no
+  // celular) é ignorado por alguns segundos. Roda depois da confirmação:
+  // envio cancelado (defaultPrevented) não conta.
+  document.addEventListener('submit', function (e) {
+    const form = e.target;
+    if (e.defaultPrevented || !(form instanceof HTMLFormElement) || form.target) {
+      return;
+    }
+    if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post') {
+      return;
+    }
+    if (form.dataset.gcEnviando === '1') {
+      e.preventDefault();
+      return;
+    }
+    form.dataset.gcEnviando = '1';
+    setTimeout(() => { delete form.dataset.gcEnviando; }, 8000);
+  });
+  // Voltar pelo navegador (bfcache) devolve a página como estava: libera.
+  window.addEventListener('pageshow', () => {
+    document.querySelectorAll('form[data-gc-enviando]').forEach((f) => { delete f.dataset.gcEnviando; });
+  });
+
   // ---------- Exportação de relatórios (PDF/Excel): loading + cancelamento ----------
   gcInicializarExportacao();
 });
@@ -292,7 +316,9 @@ function gcLerOpcoesConfirmacao(el) {
   return {
     type: el.dataset.gcConfirmType || 'warning',
     title: el.dataset.gcConfirmTitle || 'Confirmar ação',
-    message: el.dataset.gcConfirmMessage || 'Tem certeza que deseja continuar?',
+    // As views escrevem o texto no próprio data-gc-confirm="..."; o
+    // data-gc-confirm-message continua valendo quando presente.
+    message: el.dataset.gcConfirmMessage || el.dataset.gcConfirm || 'Tem certeza que deseja continuar?',
     confirmText: el.dataset.gcConfirmConfirm || 'Confirmar',
     cancelText: el.dataset.gcConfirmCancel || 'Cancelar',
   };

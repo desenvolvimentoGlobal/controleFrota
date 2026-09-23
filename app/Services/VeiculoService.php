@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\CondicaoVeiculo;
 use App\Enums\SituacaoCondicao;
 use App\Enums\SituacaoVeiculo;
+use App\Models\Manutencao;
 use App\Models\Veiculo;
 use App\Models\VeiculoHistoricoEstado;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,16 @@ class VeiculoService
             if ($veiculo->situacao === SituacaoVeiculo::Baixado && $nova !== SituacaoVeiculo::Disponivel) {
                 throw new \DomainException('Um veículo baixado só pode voltar como disponível.');
             }
+
+            $abertas = Manutencao::where('veiculo_id', $veiculo->id)->abertas();
+            if ($nova === SituacaoVeiculo::Disponivel && (clone $abertas)->where('bloqueou_veiculo', true)->exists()) {
+                throw new \DomainException('Há manutenção aberta bloqueando o veículo. Conclua ou cancele a manutenção para liberá-lo.');
+            }
+            // Baixado some das telas e dos planos: manutenção aberta ficaria
+            // esquecida, somando no "comprometido" dos relatórios.
+            if ($nova === SituacaoVeiculo::Baixado && $abertas->exists()) {
+                throw new \DomainException('O veículo tem manutenção aberta. Conclua ou cancele antes de baixá-lo.');
+            }
         }
 
         DB::transaction(function () use ($veiculo, $nova, $origem, $origemId, $observacao): void {
@@ -93,11 +104,20 @@ class VeiculoService
 
     public function atualizarKm(Veiculo $veiculo, int $km, string $origem = 'manual', ?int $origemId = null, ?string $observacao = null): void
     {
-        if ($km < $veiculo->km_atual) {
-            throw new \DomainException("A quilometragem informada ({$km}) é menor que a atual ({$veiculo->km_atual}).");
-        }
         if ($km === $veiculo->km_atual) {
             return;
+        }
+
+        if ($origem === 'manual') {
+            // Com o carro na rua, o retorno exige km >= o da saída: mexer
+            // agora poderia impedir o motorista de devolver.
+            if ($veiculo->situacao === SituacaoVeiculo::EmUso) {
+                throw new \DomainException('O veículo está em uso. Ajuste a quilometragem depois da devolução.');
+            }
+            // A correção manual pode baixar o km: é assim que se desfaz um
+            // dígito a mais digitado numa checagem. O motivo fica no histórico.
+        } elseif ($km < $veiculo->km_atual) {
+            throw new \DomainException("A quilometragem informada ({$km}) é menor que a atual ({$veiculo->km_atual}).");
         }
 
         DB::transaction(function () use ($veiculo, $km, $origem, $origemId, $observacao): void {

@@ -247,8 +247,12 @@ class RevisaoBugsTest extends TestCase
 
         $this->actingAs($this->gestor)->post(route('manutencoes.store'), ['veiculo_id' => $this->veiculo->id, 'tipo' => 'planejada', 'nome' => 'Outra']);
         $m2 = Manutencao::latest('id')->firstOrFail();
-        $this->actingAs($this->gestor)->patch(route('veiculos.situacao', $this->veiculo), ['situacao' => 'baixado', 'observacao' => 'Vendido']);
-        $this->actingAs($this->gestor)->patch(route('manutencoes.iniciar', $m2))->assertSessionHas('erro');
+        // Com manutenção aberta não se baixa: ela ficaria esquecida somando no "comprometido".
+        $this->actingAs($this->gestor)->patch(route('veiculos.situacao', $this->veiculo), ['situacao' => 'baixado', 'observacao' => 'Vendido'])->assertSessionHas('erro');
+        $this->assertSame(SituacaoVeiculo::Indisponivel, $this->veiculo->fresh()->situacao);
+
+        $this->actingAs($this->gestor)->patch(route('manutencoes.cancelar', $m2), ['motivo' => 'Vendido']);
+        $this->actingAs($this->gestor)->patch(route('veiculos.situacao', $this->veiculo), ['situacao' => 'baixado', 'observacao' => 'Vendido'])->assertSessionHas('sucesso');
         $this->assertSame(SituacaoVeiculo::Baixado, $this->veiculo->fresh()->situacao);
     }
 

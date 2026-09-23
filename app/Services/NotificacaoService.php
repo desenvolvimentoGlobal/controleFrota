@@ -39,6 +39,18 @@ class NotificacaoService
                 ? Notificacao::where('usuario_id', $usuario->id)->where('tipo', $tipo)->naoLidas()->latest()->first()
                 : null;
 
+            // Aviso recorrente (ex.: vencimento, todo dia) com o mesmo texto:
+            // não vibra o celular de novo. Sem mudança, a não lida já basta;
+            // se foi lida, repete no máximo uma vez por semana.
+            if ($atualizarNaoLida) {
+                $igual = $existente !== null && $existente->titulo === $titulo && $existente->mensagem === $mensagem;
+                $repetidaNaSemana = $existente === null && Notificacao::where('usuario_id', $usuario->id)->where('tipo', $tipo)
+                    ->where('mensagem', $mensagem)->where('updated_at', '>=', now()->subDays(7))->exists();
+                if ($igual || $repetidaNaSemana) {
+                    continue;
+                }
+            }
+
             $existente
                 ? $existente->update($dados)
                 : Notificacao::create($dados + ['usuario_id' => $usuario->id, 'tipo' => $tipo]);
