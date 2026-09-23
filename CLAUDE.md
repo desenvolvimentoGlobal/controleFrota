@@ -63,7 +63,9 @@ Nome do projeto na infra: `frota`.
 
 ## Fases
 
-0 Fundação ✔ · 1 Cadastros ✔ · 2 Alocação e checagem ✔ · 3 Manutenção ✔ · 4 Financeiro ✔ · 5 Integrações.
+0 Fundação ✔ · 1 Cadastros ✔ · 2 Alocação e checagem ✔ · 3 Manutenção ✔ · 4 Financeiro ✔ · Revisão ✔ · 5 Integrações e deploy ✔ (código; deploy real pendente).
+
+Regras da fase 5: API em `routes/api.php` (`/api/integracao/v1`), só GET, autenticada por `integracao.api[:escopo]` (tokens em `tokens_integracao`, comando `integracao:token`); tudo que sai para outro sistema passa por `App\Services\Integracao\VeiculoParaIntegracao` (serialização explícita, nunca `toArray()`); respostas por `App\Support\RespostaApi` e erros de `api/*` no mesmo envelope (bootstrap/app.php). Consumo do RH por `App\Integracoes\GestaoPessoas` (timeout curto, falha silenciosa, `null` = falhou); vínculo manual por `usuarios.colaborador_externo_id` porque a API do RH não expõe CPF/e-mail. PWA: `public/manifest.json`, ícones `images/icone-pwa-*.png`, `public/sw.js` sem cache de páginas. Contrato em `docs/API.md`, deploy em `docs/DEPLOY.md`.
 
 Regras da revisão (23/09/2026): fuso `America/Sao_Paulo`; destino do veículo "livre" sempre por `AlocacaoService::situacaoLivre()` (bloqueio de manutenção → indisponível; aprovada saindo hoje → reservado; senão disponível); relações para `Veiculo`/`Usuario` em models de histórico usam `->withTrashed()`; `value()` do Eloquent devolve o campo **com cast** (enum), não a string; arquivos gerados pelo PowerShell precisam ser gravados **sem BOM** (`New-Object System.Text.UTF8Encoding($false)`), senão `deploy.sh`/`Dockerfile` quebram no Linux; rotina `alocacoes:sincronizar` a cada 15 min.
 

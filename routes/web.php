@@ -121,6 +121,8 @@ Route::middleware(['auth', 'ativo', 'trocar-senha'])->group(function (): void {
 
     // ── Usuários (admin: todos; gestor: a própria cadeia — Policy) ────────────
     Route::middleware('perfil:admin,gestor')->group(function (): void {
+        // Antes do resource: senão "sincronizar-rh" seria lido como {usuario}.
+        Route::post('usuarios/sincronizar-rh', [UsuarioController::class, 'sincronizarRh'])->name('usuarios.sincronizar-rh');
         Route::resource('usuarios', UsuarioController::class)->parameters(['usuarios' => 'usuario']);
         Route::patch('usuarios/{usuario}/toggle-ativo', [UsuarioController::class, 'toggleAtivo'])->name('usuarios.toggle-ativo');
     });

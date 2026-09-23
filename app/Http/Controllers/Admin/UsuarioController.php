@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\SituacaoAlocacao;
 use App\Http\Controllers\Concerns\FiltrosPersistentes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Usuario\SalvarUsuarioRequest;
-use App\Models\Alocacao;
+use App\Integracoes\GestaoPessoas;
 use App\Models\Cargo;
 use App\Models\Perfil;
 use App\Models\Setor;
 use App\Models\Usuario;
+use App\Services\Integracao\SincronizarColaboradores;
 use App\Services\NotificacaoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -183,18 +183,7 @@ class UsuarioController extends Controller
      */
     private function impedimentoParaDesligar(Usuario $usuario): ?string
     {
-        $alocacao = Alocacao::with('veiculo:id,nome')
-            ->where('motorista_id', $usuario->id)
-            ->whereIn('situacao', [SituacaoAlocacao::Aprovada->value, SituacaoAlocacao::EmUso->value])
-            ->first();
-
-        if ($alocacao === null) {
-            return null;
-        }
-
-        return $alocacao->situacao === SituacaoAlocacao::EmUso
-            ? "{$usuario->nome} está com o veículo {$alocacao->veiculo->nome}. Faça a checagem de retorno ou peça ao admin para encerrar a alocação #{$alocacao->id} antes."
-            : "{$usuario->nome} tem a alocação #{$alocacao->id} aprovada. Cancele-a antes.";
+        return $usuario->motivoParaNaoDesligar();
     }
 
     /** @return array<string, mixed> */
@@ -222,7 +211,33 @@ class UsuarioController extends Controller
             'gestores' => $gestores,
             'categoriasCnh' => SalvarUsuarioRequest::CATEGORIAS_CNH,
             'ufs' => SalvarUsuarioRequest::UFS,
+            // null = integração desligada ou fora do ar (a tela avisa e segue).
+            'rhConfigurado' => app(GestaoPessoas::class)->configurada(),
+            'colaboradoresRh' => app(GestaoPessoas::class)->colaboradoresEmCache(),
         ];
+    }
+
+    /** Botão "Sincronizar com o RH" (admin): roda a mesma rotina das 06:00. */
+    public function sincronizarRh(SincronizarColaboradores $servico): RedirectResponse
+    {
+        $this->authorize('administrar');
+
+        if (! app(GestaoPessoas::class)->configurada()) {
+            return back()->with('erro', 'Integração com o Gestão de Pessoas não configurada (GESTAO_PESSOAS_URL / GESTAO_PESSOAS_TOKEN).');
+        }
+
+        $r = $servico->executar();
+
+        if (! $r['ok']) {
+            return back()->with('erro', 'Gestão de Pessoas indisponível agora. Nada foi alterado.');
+        }
+
+        $mensagem = "{$r['vinculados']} usuário(s) vinculado(s): {$r['atualizados']} atualizado(s), {$r['inativados']} inativado(s).";
+        if ($r['bloqueados'] > 0 || $r['sem_ficha'] > 0) {
+            return back()->with('aviso', $mensagem." {$r['bloqueados']} desligado(s) no RH ainda com veículo; {$r['sem_ficha']} sem ficha encontrada.");
+        }
+
+        return back()->with('sucesso', $mensagem);
     }
 
     /** @return array<string, mixed> */

@@ -118,7 +118,7 @@ git pull --ff-only origin "$BRANCH"
 # =============================================================================
 titulo "6/11  Checando variáveis de ambiente novas"
 # Só as chaves ADICIONADAS por este pull (evita falso positivo com chaves que
-# moram no OUTRO arquivo). Compara .env.example -> .env e app.env.example -> .env.docker.
+# moram no OUTRO arquivo). Compara .env.example -> .env e .env.docker.example -> .env.docker.
 checar_novas() {
     local exemplo="$1" real="$2"
     [ -f "$exemplo" ] || return 0
@@ -140,7 +140,7 @@ checar_novas() {
     fi
 }
 checar_novas ".env.example" ".env"
-checar_novas "docker/app.env.example" ".env.docker"
+checar_novas ".env.docker.example" ".env.docker"
 c_grn "Checagem de variáveis concluída."
 
 # =============================================================================

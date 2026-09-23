@@ -90,6 +90,7 @@ class SalvarUsuarioRequest extends FormRequest
 
             'ativo' => ['nullable', 'boolean'],
             'deve_trocar_senha' => ['nullable', 'boolean'],
+            'colaborador_externo_id' => ['nullable', 'integer', 'min:1', Rule::unique('usuarios', 'colaborador_externo_id')->ignore($usuario)],
         ];
     }
 
@@ -115,6 +116,7 @@ class SalvarUsuarioRequest extends FormRequest
             'gestor_id.not_in' => 'O gestor não pode ser o próprio usuário nem alguém da equipe dele (criaria um ciclo).',
             'gestor_id.in' => 'Escolha como gestor você ou alguém da sua equipe.',
             'perfil_id.in' => 'Você não pode atribuir este perfil.',
+            'colaborador_externo_id.unique' => 'Esta ficha do Gestão de Pessoas já está vinculada a outro usuário.',
         ];
     }
 

@@ -32,9 +32,17 @@
             <button class="btn btn-sm btn-outline-secondary" title="Filtrar"><i class="bi bi-search"></i></button>
             <a href="{{ route('usuarios.index', ['limpar' => 1]) }}" class="btn btn-sm btn-light">Limpar</a>
         </form>
-        @can('create', \App\Models\Usuario::class)
-            <a href="{{ route('usuarios.create') }}" class="btn btn-gc-primary btn-sm"><i class="bi bi-plus-lg"></i> Novo usuário</a>
-        @endcan
+        <div class="d-flex gap-2">
+            @can('administrar')
+                <form method="POST" action="{{ route('usuarios.sincronizar-rh') }}" data-gc-confirm="Atualizar nome, setor e cargo dos usuários vinculados ao Gestão de Pessoas e inativar os desligados?">
+                    @csrf
+                    <button class="btn btn-outline-secondary btn-sm" title="Roda a mesma rotina das 06:00"><i class="bi bi-arrow-repeat"></i> Sincronizar com o RH</button>
+                </form>
+            @endcan
+            @can('create', \App\Models\Usuario::class)
+                <a href="{{ route('usuarios.create') }}" class="btn btn-gc-primary btn-sm"><i class="bi bi-plus-lg"></i> Novo usuário</a>
+            @endcan
+        </div>
     </div>
 
     <div class="card">

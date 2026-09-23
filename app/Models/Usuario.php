@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\PerfilUsuario;
+use App\Enums\SituacaoAlocacao;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -163,6 +164,31 @@ class Usuario extends Authenticatable
         }
 
         return $query->whereIn('id', [...$usuario->idsDaEquipe(), $usuario->id]);
+    }
+
+    /**
+     * Alocação aprovada ou em uso deste motorista. Enquanto existir, ele não
+     * pode ser inativado nem excluído: ninguém mais faria o retorno do carro.
+     */
+    public function alocacaoQueImpedeDesligar(): ?Alocacao
+    {
+        return Alocacao::with('veiculo:id,nome')
+            ->where('motorista_id', $this->id)
+            ->whereIn('situacao', [SituacaoAlocacao::Aprovada->value, SituacaoAlocacao::EmUso->value])
+            ->first();
+    }
+
+    public function motivoParaNaoDesligar(): ?string
+    {
+        $alocacao = $this->alocacaoQueImpedeDesligar();
+
+        if ($alocacao === null) {
+            return null;
+        }
+
+        return $alocacao->situacao === SituacaoAlocacao::EmUso
+            ? "{$this->nome} está com o veículo {$alocacao->veiculo->nome}. Faça a checagem de retorno ou peça ao admin para encerrar a alocação #{$alocacao->id} antes."
+            : "{$this->nome} tem a alocação #{$alocacao->id} aprovada. Cancele-a antes.";
     }
 
     // ─── Habilitação ──────────────────────────────────────────────────────────

@@ -35,6 +35,16 @@ return [
         ],
     ],
 
+    /*
+    | gestaoPessoas — fonte da verdade do RH (nome, setor, cargo, desligamento).
+    | O token é emitido LÁ: php artisan integracao:token criar controle-frota
+    | Vazias = integração desligada (nada é consultado).
+    */
+    'gestao_pessoas' => [
+        'url' => env('GESTAO_PESSOAS_URL', ''),
+        'token' => env('GESTAO_PESSOAS_TOKEN', ''),
+    ],
+
     // Web Push (VAPID). Gere um par com: php artisan webpush:vapid
     'webpush' => [
         'subject' => env('VAPID_SUBJECT', env('APP_URL', 'http://localhost')),

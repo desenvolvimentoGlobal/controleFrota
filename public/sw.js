@@ -1,21 +1,37 @@
-// Service Worker — Web Push do sistema de Gestão de Pessoas.
+// Service Worker do Controle de Frota.
+//
+// Duas funções:
+//  1) tornar o sistema instalável no celular (PWA);
+//  2) Web Push: mostrar a notificação e abrir o sistema no clique.
+//
+// NÃO faz cache de páginas: o sistema depende de sessão e de dados sempre
+// atuais (situação do veículo, alocações). Sem rede, o navegador mostra a
+// página de erro padrão — melhor do que uma tela velha e enganosa.
+
+self.addEventListener('install', function () {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', function (event) {
+    event.waitUntil(self.clients.claim());
+});
 
 self.addEventListener('push', function (event) {
     let dados = {};
     try {
         dados = event.data ? event.data.json() : {};
     } catch (e) {
-        dados = { title: 'Notificação', body: event.data ? event.data.text() : '' };
+        dados = { title: 'Controle de Frota', body: event.data ? event.data.text() : '' };
     }
 
-    const titulo = dados.title || 'Notificação';
+    const titulo = dados.title || 'Controle de Frota';
     const opcoes = {
         body: dados.body || '',
-        icon: '/images/logo_apenas_bola.jpg',
-        badge: '/images/logo_apenas_bola.jpg',
+        icon: '/images/icone-pwa-192.png',
+        badge: '/images/icone-pwa-192.png',
         tag: dados.tag || 'geral',
         renotify: true,
-        data: { url: dados.url || '/' },
+        data: { url: dados.url || '/painel' },
     };
 
     event.waitUntil(self.registration.showNotification(titulo, opcoes));
@@ -24,11 +40,10 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
 
-    const destino = (event.notification.data && event.notification.data.url) || '/';
+    const destino = (event.notification.data && event.notification.data.url) || '/painel';
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (janelas) {
-            // Se já houver uma janela do sistema aberta, foca e navega até o destino.
             for (const janela of janelas) {
                 if ('focus' in janela) {
                     if ('navigate' in janela) {
@@ -37,8 +52,7 @@ self.addEventListener('notificationclick', function (event) {
                     return janela.focus();
                 }
             }
-            // Caso contrário, abre uma nova janela. A rota passa pelos middlewares
-            // normais (auth/permissões); se não autenticado, o sistema leva ao login.
+            // A rota passa pelos middlewares normais: sem sessão, cai no login.
             if (clients.openWindow) {
                 return clients.openWindow(destino);
             }

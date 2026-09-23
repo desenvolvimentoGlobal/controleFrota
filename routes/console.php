@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Integracoes\GestaoPessoas;
 use Illuminate\Support\Facades\Schedule;
 
 // Agendamentos do Controle de Frota. Dependem de `php artisan schedule:work`
@@ -27,6 +28,15 @@ Schedule::command('manutencoes:verificar-planos')
     ->dailyAt('06:30')
     ->timezone('America/Sao_Paulo')
     ->withoutOverlapping();
+
+// RH: nome, setor e cargo dos usuários vinculados ao gestaoPessoas; desligado
+// lá é inativado aqui (salvo quem está com carro — o admin é avisado).
+// Não roda sem GESTAO_PESSOAS_URL/TOKEN.
+Schedule::command('integracao:sincronizar-colaboradores')
+    ->dailyAt('06:00')
+    ->timezone('America/Sao_Paulo')
+    ->withoutOverlapping()
+    ->when(fn () => app(GestaoPessoas::class)->configurada());
 
 // Licenciamento, seguro e CNH vencendo nos próximos 30 dias.
 Schedule::command('frota:verificar-vencimentos')

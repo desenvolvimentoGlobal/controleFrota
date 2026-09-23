@@ -6,6 +6,14 @@
     <title>@yield('title', 'Painel') · Controle de Frota</title>
     <link rel="icon" type="image/png" href="{{ asset('images/logo_apenas_bola.jpg') }}">
 
+    {{-- PWA: instalável no celular (a checagem por fotos é feita pelo telefone). --}}
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#015498">
+    <link rel="apple-touch-icon" href="{{ asset('images/icone-pwa-192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Frota">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -293,6 +301,12 @@
         <script src="{{ asset('js/webpush.js') }}?v={{ filemtime(public_path('js/webpush.js')) }}"></script>
     @endif
 @endauth
+{{-- Registro do service worker também sem Web Push: é ele que torna o app instalável. --}}
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
+    }
+</script>
 @stack('scripts')
 </body>
 </html>

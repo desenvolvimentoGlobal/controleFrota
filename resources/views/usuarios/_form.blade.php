@@ -88,6 +88,28 @@
         @error('gestor_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
     </div>
 
+    @if($rhConfigurado)
+        <div class="col-md-8">
+            <label class="form-label">Ficha no Gestão de Pessoas</label>
+            @php($vinculado = old('colaborador_externo_id', $usuario->colaborador_externo_id ?? ''))
+            @if($colaboradoresRh !== null)
+                <select name="colaborador_externo_id" class="form-select @error('colaborador_externo_id') is-invalid @enderror">
+                    <option value="">Sem vínculo</option>
+                    @foreach(collect($colaboradoresRh)->sortBy('nome') as $c)
+                        <option value="{{ $c['id'] }}" @selected((string) $vinculado === (string) $c['id'])>
+                            {{ $c['nome'] }} · {{ $c['setor']['nome'] ?? 'sem setor' }}{{ ($c['situacao'] ?? '') === 'desligado' ? ' · DESLIGADO' : '' }}
+                        </option>
+                    @endforeach
+                </select>
+                <div class="form-text">Vinculado, o nome, o setor e o cargo passam a vir do RH todo dia às 06:00, e o desligamento lá inativa o usuário aqui.</div>
+            @else
+                <input type="hidden" name="colaborador_externo_id" value="{{ $vinculado }}">
+                <div class="form-control-plaintext small text-warning"><i class="bi bi-exclamation-triangle"></i> Gestão de Pessoas indisponível agora{{ $vinculado ? " (vínculo atual: ficha #{$vinculado})" : '' }}. O vínculo pode ser feito depois.</div>
+            @endif
+            @error('colaborador_externo_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+        </div>
+    @endif
+
     <div class="col-12 mt-4"><h6 class="text-muted text-uppercase small mb-0">Habilitação</h6></div>
 
     <div class="col-12">
