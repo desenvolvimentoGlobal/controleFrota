@@ -127,7 +127,10 @@ class ChecagemController extends Controller
     /** Checagem concluída, com comparação lado a lado. */
     public function show(Checagem $checagem, Request $request): View
     {
-        $this->authorize('view', $checagem->alocacao);
+        // Quem cuida da frota abre qualquer checagem (vem do histórico do veículo).
+        if (! $request->user()->can('frota.gerenciar')) {
+            $this->authorize('view', $checagem->alocacao);
+        }
 
         $checagem->load(['alocacao.veiculo', 'motorista', 'itens.fotoAtual', 'itens.ocorrencia', 'anterior.itens.fotoAtual', 'anterior.motorista:id,nome', 'anterior.alocacao']);
         $anteriores = $checagem->anterior?->itens->keyBy('item') ?? collect();
@@ -154,7 +157,7 @@ class ChecagemController extends Controller
 
     /**
      * Serve a foto do disco privado. Os ids são sequenciais, então a rota
-     * confere quem pode ver: admin/gestor (cuidam da frota), quem vê a
+     * confere quem pode ver: `frota.gerenciar` (cuida da frota), quem vê a
      * alocação, o motorista que usa a foto como comparação e os envolvidos
      * numa ocorrência que a cita.
      */
@@ -171,7 +174,7 @@ class ChecagemController extends Controller
 
     private function podeVerFoto(ChecagemFoto $foto, Usuario $usuario): bool
     {
-        if ($usuario->temAlgumPerfil('admin', 'gestor')) {
+        if ($usuario->can('frota.gerenciar')) {
             return true;
         }
 

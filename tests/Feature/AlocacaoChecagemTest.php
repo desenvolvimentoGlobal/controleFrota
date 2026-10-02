@@ -178,6 +178,16 @@ class AlocacaoChecagemTest extends TestCase
         $this->actingAs($this->motorista1)->get(route('checagens.foto', $outraFoto))->assertForbidden();
         $this->actingAs($this->motorista2)->get(route('checagens.foto', $outraFoto))->assertOk();
         $this->actingAs($this->gestor)->get(route('checagens.foto', $outraFoto))->assertOk();
+
+        // 8) Financeiro cuida da frota: histórico, checagem e fotos de qualquer
+        // motorista, mas não a alocação nem a ocorrência.
+        $financeiro = $this->usuario('financeiro', 'fin', '', ['cpf' => null]);
+        $this->actingAs($financeiro)->get(route('checagens.historico', $this->veiculo))->assertOk()->assertSee(route('checagens.show', $saida2), false);
+        $this->actingAs($financeiro)->get(route('checagens.show', $saida2))->assertOk()
+            ->assertSee(route('checagens.historico', $this->veiculo), false)
+            ->assertDontSee(route('ocorrencias.show', $ocorrencia), false);
+        $this->actingAs($financeiro)->get(route('checagens.foto', $outraFoto))->assertOk();
+        $this->actingAs($financeiro)->get(route('alocacoes.show', $alocacao2))->assertForbidden();
     }
 
     public function test_primeira_checagem_do_veiculo_nao_gera_ocorrencia(): void

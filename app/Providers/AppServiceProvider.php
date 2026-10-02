@@ -64,14 +64,16 @@ class AppServiceProvider extends ServiceProvider
     private function registrarGates(): void
     {
         Gate::define('usuarios.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor'));
-        Gate::define('frota.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor'));
+        // Ficha do veículo: cadastro, situação, estado/km, condições, histórico e fotos de checagem.
+        Gate::define('frota.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor', 'financeiro'));
         Gate::define('alocacoes.aprovar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor'));
         Gate::define('ocorrencias.revisar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor'));
         Gate::define('manutencoes.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor'));
+        Gate::define('planos.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor', 'financeiro'));
         Gate::define('manutencoes.ver', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor', 'financeiro'));
         Gate::define('manutencoes.anotar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor', 'financeiro'));
         Gate::define('fornecedores.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'gestor', 'financeiro'));
-        Gate::define('cadastros.gerenciar', fn (Usuario $u) => $u->temPerfil('admin'));
+        Gate::define('cadastros.gerenciar', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'financeiro'));
         Gate::define('financeiro.ver', fn (Usuario $u) => $u->temAlgumPerfil('admin', 'financeiro'));
         Gate::define('administrar', fn (Usuario $u) => $u->temPerfil('admin'));
     }

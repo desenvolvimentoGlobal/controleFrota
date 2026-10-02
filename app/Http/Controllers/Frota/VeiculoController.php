@@ -21,7 +21,7 @@ use Illuminate\View\View;
 
 /**
  * Cadastro de veículos. Todos os perfis consultam; só `frota.gerenciar`
- * (admin, gestor) cria, edita e muda situação/estado à mão.
+ * (admin, gestor, financeiro) cria, edita e muda situação/estado à mão.
  */
 class VeiculoController extends Controller
 {

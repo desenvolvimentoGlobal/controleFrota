@@ -149,4 +149,51 @@ class VeiculoCrudTest extends TestCase
         $this->actingAs($geral)->get(route('fornecedores.index'))->assertForbidden();
         $this->actingAs($geral)->get(route('setores.index'))->assertForbidden();
     }
+
+    public function test_financeiro_mantem_cadastros_e_ficha_do_veiculo_exceto_usuarios(): void
+    {
+        $financeiro = $this->usuario('financeiro');
+
+        // Veículo: cria e edita a ficha.
+        $this->actingAs($financeiro)->get(route('veiculos.create'))->assertOk();
+        $this->actingAs($financeiro)->post(route('veiculos.store'), $this->dados())->assertRedirect();
+        $veiculo = Veiculo::firstOrFail();
+        $this->actingAs($financeiro)->get(route('veiculos.edit', $veiculo))->assertOk();
+        $this->actingAs($financeiro)->put(route('veiculos.update', $veiculo), $this->dados(['nome' => 'Onix editado']))->assertRedirect();
+        $this->assertSame('Onix editado', $veiculo->fresh()->nome);
+
+        // Situação, estado/km, condições e histórico de checagens.
+        $this->actingAs($financeiro)->get(route('veiculos.show', $veiculo))->assertOk()->assertSee('modal-situacao');
+        $this->actingAs($financeiro)->patch(route('veiculos.situacao', $veiculo), ['situacao' => 'indisponivel', 'observacao' => 'Aguardando documento'])->assertSessionHas('sucesso');
+        $this->assertSame(SituacaoVeiculo::Indisponivel, $veiculo->fresh()->situacao);
+        $this->actingAs($financeiro)->patch(route('veiculos.estado', $veiculo), ['estado_atual' => 'regular', 'km_atual' => 1500, 'observacao' => 'Conferido'])->assertSessionHas('sucesso');
+        $this->assertSame(1500, $veiculo->fresh()->km_atual);
+        $this->actingAs($financeiro)->put(route('veiculos.condicoes', $veiculo), [
+            'condicoes' => ['freios' => ['situacao' => 'atencao', 'observacao' => 'Ruído']],
+        ])->assertRedirect();
+        $this->assertSame('atencao', $veiculo->condicoes()->where('sistema', 'freios')->first()->situacao->value);
+        $this->actingAs($financeiro)->get(route('checagens.historico', $veiculo))->assertOk();
+
+        // Planos preventivos.
+        $this->actingAs($financeiro)->post(route('planos.store', $veiculo), ['nome' => 'Troca de óleo', 'intervalo_km' => 10000])->assertSessionHas('sucesso');
+        $plano = $veiculo->planosManutencao()->firstOrFail();
+        $this->actingAs($financeiro)->put(route('planos.update', $plano), ['nome' => 'Troca de óleo e filtro', 'intervalo_km' => 10000, 'ativo' => 1])->assertSessionHas('sucesso');
+        $this->actingAs($financeiro)->delete(route('planos.destroy', $plano))->assertSessionHas('sucesso');
+
+        // Abrir manutenção e excluir veículo continuam fora.
+        $this->actingAs($financeiro)->get(route('manutencoes.create'))->assertForbidden();
+        $this->actingAs($financeiro)->delete(route('veiculos.destroy', $veiculo))->assertForbidden();
+
+        // Setores, cargos e fornecedores.
+        $this->actingAs($financeiro)->get(route('setores.index'))->assertOk();
+        $this->actingAs($financeiro)->post(route('setores.store'), ['nome' => 'Compras'])->assertRedirect(route('setores.index'));
+        $this->actingAs($financeiro)->get(route('cargos.index'))->assertOk();
+        $this->actingAs($financeiro)->get(route('fornecedores.index'))->assertOk();
+        $this->actingAs($financeiro)->get(route('painel'))->assertOk()
+            ->assertSee(route('setores.index'), false)->assertDontSee(route('usuarios.index'), false);
+
+        // Usuários, não.
+        $this->actingAs($financeiro)->get(route('usuarios.index'))->assertForbidden();
+        $this->actingAs($financeiro)->get(route('usuarios.create'))->assertForbidden();
+    }
 }

@@ -214,13 +214,13 @@
                                                 {{ $p->proximoKm() !== null ? number_format($p->proximoKm(), 0, ',', '.').' km' : '' }}<br>{{ $p->proximaData()?->format('d/m/Y') }}
                                             </td>
                                             <td class="text-end text-nowrap">
-                                                @can('manutencoes.gerenciar')
+                                                @can('planos.gerenciar')
                                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#plano-{{ $p->id }}" title="Editar"><i class="bi bi-pencil"></i></button>
                                                     <button type="button" class="btn btn-sm btn-outline-danger" data-confirm-delete data-url="{{ route('planos.destroy', $p) }}" data-title="Remover plano" data-message="Remover o plano &quot;{{ $p->nome }}&quot;?"><i class="bi bi-trash"></i></button>
                                                 @endcan
                                             </td>
                                         </tr>
-                                        @can('manutencoes.gerenciar')
+                                        @can('planos.gerenciar')
                                             <tr class="collapse" id="plano-{{ $p->id }}"><td colspan="5" style="background:#F7F8FA">
                                                 <form method="POST" action="{{ route('planos.update', $p) }}" class="row g-2 align-items-end">@csrf @method('PUT')
                                                     @include('veiculos._plano_campos', ['plano' => $p])
@@ -234,7 +234,7 @@
                                     @endforelse
                                 </tbody>
                             </table>
-                            @can('manutencoes.gerenciar')
+                            @can('planos.gerenciar')
                                 <form method="POST" action="{{ route('planos.store', $veiculo) }}" class="row g-2 align-items-end border rounded p-2">@csrf
                                     <div class="col-12 small fw-semibold">Novo plano</div>
                                     @include('veiculos._plano_campos', ['plano' => null])

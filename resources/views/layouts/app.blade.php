@@ -107,8 +107,10 @@
             @endcan
 
             {{-- ===== Administração ===== --}}
-            @can('usuarios.gerenciar')
+            @if(auth()->user()->can('usuarios.gerenciar') || auth()->user()->can('cadastros.gerenciar'))
                 <div class="gc-nav-section">Administração</div>
+            @endif
+            @can('usuarios.gerenciar')
                 <a href="{{ route('usuarios.index') }}" class="gc-nav-link {{ request()->routeIs('usuarios.*') ? 'active' : '' }}">
                     <i class="bi bi-person-gear"></i> Usuários
                 </a>

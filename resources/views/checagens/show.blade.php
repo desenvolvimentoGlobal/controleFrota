@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Checagem de '.$checagem->tipo->rotulo().' — '.$checagem->alocacao->veiculo->nome)
-@section('voltar', route('alocacoes.show', $checagem->alocacao))
+@section('voltar', auth()->user()->can('view', $checagem->alocacao) ? route('alocacoes.show', $checagem->alocacao) : route('checagens.historico', $checagem->veiculo_id))
 
 @section('content')
     <div class="card mb-3"><div class="card-body small">
@@ -14,9 +14,9 @@
             <div class="col-md-6 text-md-end text-muted">
                 @if($checagem->anterior)
                     Comparada com a checagem de {{ $checagem->anterior->tipo->rotulo() }} de <strong>{{ $checagem->anterior->motorista->nome }}</strong> em {{ $checagem->anterior->concluida_em->format('d/m/Y H:i') }}
-                    @can('view', $checagem->anterior->alocacao)
+                    @if(auth()->user()->can('frota.gerenciar') || auth()->user()->can('view', $checagem->anterior->alocacao))
                         <div><a href="{{ route('checagens.show', $checagem->anterior) }}">ver checagem anterior</a></div>
-                    @endcan
+                    @endif
                 @else
                     Primeira checagem do veículo (referência inicial).
                 @endif
@@ -55,7 +55,13 @@
                                 </div>
                             </div>
                             @if($item->observacao)<div class="small mt-2 text-danger"><i class="bi bi-exclamation-triangle"></i> {{ $item->observacao }}</div>@endif
-                            @if($item->ocorrencia)<a href="{{ route('ocorrencias.show', $item->ocorrencia) }}" class="small">Ocorrência #{{ $item->ocorrencia->id }} · {{ $item->ocorrencia->situacao->rotulo() }}</a>@endif
+                            @if($item->ocorrencia)
+                                @can('view', $item->ocorrencia)
+                                    <a href="{{ route('ocorrencias.show', $item->ocorrencia) }}" class="small">Ocorrência #{{ $item->ocorrencia->id }} · {{ $item->ocorrencia->situacao->rotulo() }}</a>
+                                @else
+                                    <span class="small text-muted">Ocorrência #{{ $item->ocorrencia->id }} · {{ $item->ocorrencia->situacao->rotulo() }}</span>
+                                @endcan
+                            @endif
                         </div>
                     </div>
                 </div>

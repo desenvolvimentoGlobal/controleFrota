@@ -16,7 +16,7 @@ class PlanoManutencaoController extends Controller
 {
     public function store(Veiculo $veiculo, Request $request): RedirectResponse
     {
-        Gate::authorize('manutencoes.gerenciar');
+        Gate::authorize('planos.gerenciar');
         $dados = $this->validar($request);
 
         $veiculo->planosManutencao()->create($dados + [
@@ -30,7 +30,7 @@ class PlanoManutencaoController extends Controller
 
     public function update(PlanoManutencao $plano, Request $request): RedirectResponse
     {
-        Gate::authorize('manutencoes.gerenciar');
+        Gate::authorize('planos.gerenciar');
         $plano->update($this->validar($request) + ['ativo' => $request->boolean('ativo')]);
 
         return back()->with('sucesso', 'Plano de manutenção atualizado.');
@@ -38,7 +38,7 @@ class PlanoManutencaoController extends Controller
 
     public function destroy(PlanoManutencao $plano): RedirectResponse
     {
-        Gate::authorize('manutencoes.gerenciar');
+        Gate::authorize('planos.gerenciar');
         $plano->delete();
 
         return back()->with('sucesso', 'Plano de manutenção removido.');

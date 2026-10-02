@@ -42,7 +42,7 @@ Nome do projeto na infra: `frota`.
 
 - **Controller fino → Service (regra, `DB::transaction`, lança `\DomainException`) → Eloquent.** O controller captura `\DomainException` e devolve `back()->with('erro', ...)`.
 - Validação sempre em **Form Request** (`app/Http/Requests/<Entidade>/Salvar<Entidade>Request.php`), com `prepareForValidation()` normalizando máscaras e `attributes()` em pt-BR.
-- Autorização em três camadas: middleware `perfil:admin,gestor` na rota, **Gates** nomeados em `AppServiceProvider` (`usuarios.gerenciar`, `frota.gerenciar`, `alocacoes.aprovar`, `ocorrencias.revisar`, `manutencoes.gerenciar`, `financeiro.ver`, `administrar`) e **Policies** para entidades com dono/cadeia. Regra da casa: esconder o item do menu **e** recusar a rota.
+- Autorização em três camadas: middleware `perfil:admin,gestor` na rota, **Gates** nomeados em `AppServiceProvider` (`usuarios.gerenciar`, `frota.gerenciar`, `planos.gerenciar`, `cadastros.gerenciar`, `alocacoes.aprovar`, `ocorrencias.revisar`, `manutencoes.gerenciar`, `financeiro.ver`, `administrar`) e **Policies** para entidades com dono/cadeia. Regra da casa: esconder o item do menu **e** recusar a rota.
 - Recorte do gestor: `Usuario::idsDaEquipe()` (recursivo) e scope `visiveisPara($usuario)`.
 - Enums string-backed em `app/Enums` com `rotulo()` e `paraSelect()`.
 - Auditoria automática: `AppServiceProvider::registrarAuditoria()` escuta `eloquent.*: *` e grava `logs_auditoria` via `AuditoriaService`. Fluxos sem model chamam `registrar()` explicitamente. Tabelas derivadas ficam em `TABELAS_IGNORADAS`.
@@ -62,7 +62,7 @@ Nome do projeto na infra: `frota`.
 
 ## Domínio (resumo — detalhes em docs/PLANEJAMENTO.md)
 
-- **Perfis**: `admin` (tudo), `financeiro` (custos), `gestor` (própria cadeia via `gestor_id`), `geral` (base).
+- **Perfis**: `admin` (tudo), `financeiro` (custos + todos os cadastros e a ficha inteira do veículo, exceto usuários; não abre/conclui manutenção), `gestor` (própria cadeia via `gestor_id`), `geral` (base).
 - **Usuário = colaborador**: uma tabela `usuarios` com CPF (**opcional** desde 23/09/2026; se informado, válido e único), cargo, setor, contato, endereço, CNH e `pode_dirigir`. CNH **não** é obrigatória para alocar; só avisa.
 - **Veículo**: `situacao` operacional (disponivel, reservado, em_uso, em_manutencao, indisponivel, baixado), `estado_inicial`/`estado_atual` (condição física) e `veiculo_condicoes` por sistema mecânico (ok/atencao/critico).
 - **Alocação**: solicitada → aprovada → em_uso → concluida (+ recusada/cancelada). Gestor e admin nascem aprovados (`config/frota.php`).
