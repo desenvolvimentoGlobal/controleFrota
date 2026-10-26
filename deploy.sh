@@ -146,8 +146,10 @@ c_grn "Checagem de variáveis concluída."
 # =============================================================================
 # 7) build (separado do up: build quebrado NÃO derruba o que está no ar)
 # =============================================================================
-titulo "7/11  docker compose build"
-docker compose build
+titulo "7/11  docker compose build --pull"
+# --pull: baixa sempre a imagem base (php:8.3-fpm, nginx) atualizada, para
+# a correcao de seguranca do PHP chegar no deploy (PHP2Shell, out/2026).
+docker compose build --pull
 
 # =============================================================================
 # 8) up
