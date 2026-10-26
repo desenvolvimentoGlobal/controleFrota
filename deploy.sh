@@ -51,7 +51,7 @@ chaves_env() {
 titulo "1/11  Backup do banco (antes de qualquer coisa)"
 [ -x "$DUMP_SH" ] || abortar "não achei o script de backup executável em $DUMP_SH"
 antes=$(date +%s)
-"$DUMP_SH"
+"$DUMP_SH" "$PROJETO"   # so o banco DESTE projeto (sem argumento o dump.sh faz todos)
 # Pega o .gz mais novo da pasta do projeto e exige que seja recente e > 0 bytes.
 novo_gz=$(find "$BACKUP_DIR" -name '*.sql.gz' -newermt "@${antes}" -type f 2>/dev/null | sort | tail -n1 || true)
 [ -n "$novo_gz" ]        || abortar "o backup não gerou nenhum .gz novo em $BACKUP_DIR (o projeto está no for-loop do dump.sh?)"
